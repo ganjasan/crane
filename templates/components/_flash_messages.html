@@ -1,0 +1,12 @@
+{% comment %}
+  Variables: none. Reads `messages` from context (django.contrib.messages).
+{% endcomment %}
+{% if messages %}
+<div class="space-y-2 mb-4">
+  {% for message in messages %}
+    <div class="flash-{% if message.tags == 'error' %}danger{% elif message.tags == 'success' %}success{% elif message.tags == 'warning' %}warning{% else %}info{% endif %}">
+      {{ message }}
+    </div>
+  {% endfor %}
+</div>
+{% endif %}

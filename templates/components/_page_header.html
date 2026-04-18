@@ -1,0 +1,26 @@
+{% comment %}
+  Variables:
+    title (str, required)
+    subtitle (str, optional)
+    action_label (str, optional)
+    action_url (str, optional)
+    action_icon (str, optional — icon name like "plus")
+    secondary_label / secondary_url (str, optional)
+{% endcomment %}
+<div class="page-header">
+  <div class="min-w-0">
+    <h1 class="page-title">{{ title }}</h1>
+    {% if subtitle %}<p class="page-subtitle">{{ subtitle }}</p>{% endif %}
+  </div>
+  <div class="flex items-center gap-2 shrink-0">
+    {% if secondary_url %}
+      <a href="{{ secondary_url }}" class="btn-secondary">{{ secondary_label }}</a>
+    {% endif %}
+    {% if action_url %}
+      <a href="{{ action_url }}" class="btn-primary">
+        {% if action_icon %}{% include "icons/"|add:action_icon|add:".html" %}{% endif %}
+        {{ action_label }}
+      </a>
+    {% endif %}
+  </div>
+</div>

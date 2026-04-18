@@ -1,0 +1,20 @@
+{% comment %}
+  Variables:
+    icon (str, optional — icon name)
+    heading (str, required)
+    subtext (str, optional)
+    action_label (str, optional)
+    action_url (str, optional)
+{% endcomment %}
+<div class="card p-12 text-center">
+  {% if icon %}
+    <div class="w-12 h-12 mx-auto mb-4 rounded-full bg-slate-100 flex items-center justify-center text-crane-muted">
+      {% include "icons/"|add:icon|add:".html" %}
+    </div>
+  {% endif %}
+  <div class="text-sm font-semibold text-crane-ink">{{ heading }}</div>
+  {% if subtext %}<div class="text-sm text-crane-muted mt-1 max-w-sm mx-auto">{{ subtext }}</div>{% endif %}
+  {% if action_url %}
+    <a href="{{ action_url }}" class="btn-primary mt-5 inline-flex">{{ action_label }}</a>
+  {% endif %}
+</div>

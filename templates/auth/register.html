@@ -1,0 +1,25 @@
+{% extends "base_auth.html" %}
+{% block title %}Create account — Crane{% endblock %}
+
+{% block content %}
+<h1 class="text-2xl font-semibold text-crane-ink">Create your account</h1>
+<p class="text-sm text-crane-muted mt-1 mb-8">Start coordinating your team's OSINT work.</p>
+
+<form method="post" class="space-y-4">
+  {% csrf_token %}
+  {% for field in form %}
+    {% include "components/_form_field.html" with field=field %}
+  {% endfor %}
+
+  {% if form.non_field_errors %}
+    <div class="flash-danger">{{ form.non_field_errors.0 }}</div>
+  {% endif %}
+
+  <button type="submit" class="btn-primary w-full">Create account</button>
+</form>
+
+<p class="mt-6 text-center text-sm text-crane-muted">
+  Already have an account?
+  <a href="{% url 'login' %}" class="font-medium text-crane-ink hover:underline">Log in</a>
+</p>
+{% endblock %}

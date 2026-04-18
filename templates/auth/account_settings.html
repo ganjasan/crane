@@ -1,0 +1,36 @@
+{% extends "base_app.html" %}
+{% block title %}Account settings — Crane{% endblock %}
+
+{% block content %}
+{% include "components/_page_header.html" with title="Account settings" subtitle="Manage your profile and API access." %}
+
+<div class="grid gap-4 max-w-2xl">
+  <div class="card-padded">
+    <h2 class="text-sm font-semibold mb-2">Profile</h2>
+    <p class="text-sm text-crane-muted">{{ user.email }}</p>
+  </div>
+
+  <div class="card-padded">
+    <h2 class="text-sm font-semibold mb-1">API token</h2>
+    <p class="text-xs text-crane-muted mb-4">Use this token to authenticate the browser extension or API calls.</p>
+
+    {% if api_token %}
+      <div class="flex items-center justify-between gap-3 bg-crane-surface rounded-md px-3 py-2.5 mb-4 border border-crane-border">
+        <div class="min-w-0">
+          <div class="text-sm font-mono truncate">{{ api_token.key|truncatechars:24 }}…</div>
+          <div class="text-xs text-crane-muted mt-0.5">Created {{ api_token.created_at|date:"M d, Y" }}</div>
+        </div>
+        <form method="post">{% csrf_token %}
+          <button name="action" value="revoke" class="btn-danger btn-sm">Revoke</button>
+        </form>
+      </div>
+    {% endif %}
+
+    <form method="post">{% csrf_token %}
+      <button name="action" value="generate" class="btn-primary">
+        {% if api_token %}Regenerate token{% else %}Generate token{% endif %}
+      </button>
+    </form>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,9 @@
+{% comment %}
+  Variables:
+    text (str, required)
+    variant (str, optional — one of: success, warning, danger, info, muted, default)
+    dot (bool, optional — whether to show colored dot prefix)
+{% endcomment %}
+<span class="pill-{{ variant|default:'muted' }}">
+  {% if dot %}<span class="pill-dot"></span>{% endif %}{{ text }}
+</span>

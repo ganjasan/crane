@@ -1,0 +1,25 @@
+{% comment %}
+  Variables:
+    page_obj (django.core.paginator.Page, required)
+{% endcomment %}
+{% if page_obj.paginator.num_pages > 1 %}
+<nav class="flex items-center justify-between gap-3 mt-4 text-sm">
+  <div class="text-crane-muted">
+    Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }} · {{ page_obj.paginator.count }} total
+  </div>
+  <div class="flex items-center gap-2">
+    {% with qs=request.GET.urlencode %}
+    {% if page_obj.has_previous %}
+      <a href="?page={{ page_obj.previous_page_number }}{% if qs %}&{{ qs }}{% endif %}" class="btn-secondary btn-sm">{% include "icons/chevron-left.html" %} Prev</a>
+    {% else %}
+      <span class="btn-secondary btn-sm opacity-50 cursor-not-allowed">{% include "icons/chevron-left.html" %} Prev</span>
+    {% endif %}
+    {% if page_obj.has_next %}
+      <a href="?page={{ page_obj.next_page_number }}{% if qs %}&{{ qs }}{% endif %}" class="btn-secondary btn-sm">Next {% include "icons/chevron-right.html" %}</a>
+    {% else %}
+      <span class="btn-secondary btn-sm opacity-50 cursor-not-allowed">Next {% include "icons/chevron-right.html" %}</span>
+    {% endif %}
+    {% endwith %}
+  </div>
+</nav>
+{% endif %}

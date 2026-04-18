@@ -1,0 +1,41 @@
+{% extends "base_app.html" %}
+{% block title %}Incidents — {{ request.project.name }} — Crane{% endblock %}
+
+{% block content %}
+{% url 'incident_export' org_slug=request.organization.slug project_slug=request.project.slug as export_url %}
+{% url 'incident_create' org_slug=request.organization.slug project_slug=request.project.slug as new_url %}
+{% include "components/_page_header.html" with title="Incidents" subtitle="Structured evidence records across platforms." secondary_label="Export CSV" secondary_url=export_url action_label="New incident" action_url=new_url action_icon="plus" %}
+
+<form class="card p-4 mb-5"
+      hx-get="{% url 'incident_list' org_slug=request.organization.slug project_slug=request.project.slug %}"
+      hx-target="#incident-table" hx-swap="innerHTML"
+      hx-trigger="change, input delay:300ms from:[name=search]">
+  <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+    <div class="col-span-2 sm:col-span-1">
+      <input type="text" name="search" value="{{ filter_form.search.value|default:'' }}" placeholder="Search…">
+    </div>
+    <select name="platform">
+      <option value="">All platforms</option>
+      {% for p in filter_form.platform.field.queryset %}
+        <option value="{{ p.pk }}" {% if filter_form.platform.value|slugify == p.pk|slugify %}selected{% endif %}>{{ p.name }}</option>
+      {% endfor %}
+    </select>
+    <select name="status">
+      {% for value, label in filter_form.status.field.choices %}
+        <option value="{{ value }}" {% if filter_form.status.value == value %}selected{% endif %}>{{ label }}</option>
+      {% endfor %}
+    </select>
+    <select name="confidence">
+      {% for value, label in filter_form.confidence.field.choices %}
+        <option value="{{ value }}" {% if filter_form.confidence.value == value %}selected{% endif %}>{{ label }}</option>
+      {% endfor %}
+    </select>
+    <input type="date" name="date_from" value="{{ filter_form.date_from.value|default:'' }}">
+    <input type="date" name="date_to" value="{{ filter_form.date_to.value|default:'' }}">
+  </div>
+</form>
+
+<div id="incident-table">
+  {% include "incidents/_list_rows.html" %}
+</div>
+{% endblock %}

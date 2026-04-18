@@ -1,7 +1,22 @@
 from django.core.exceptions import PermissionDenied
 from django.contrib.auth.mixins import LoginRequiredMixin
+from django.http import HttpResponseBadRequest
 
 from .models import OrganizationMembership, ProjectMembership
+
+
+class HtmxOnlyMixin:
+    """Reject non-HTMX requests with HTTP 400.
+
+    Apply to views whose sole purpose is rendering an HTMX partial. Guarantees
+    that a partial-only view never accidentally renders bare in a full-page
+    request.
+    """
+
+    def dispatch(self, request, *args, **kwargs):
+        if not getattr(request, "htmx", False):
+            return HttpResponseBadRequest("This endpoint requires an HTMX request.")
+        return super().dispatch(request, *args, **kwargs)
 
 
 class OrgRequiredMixin(LoginRequiredMixin):

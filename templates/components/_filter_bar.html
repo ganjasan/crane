@@ -1,0 +1,16 @@
+{% comment %}
+  Variables:
+    form (Django form, required)
+    target_id (str, required — HTMX target id without leading #)
+    endpoint (str, required — URL to GET against)
+{% endcomment %}
+<form hx-get="{{ endpoint }}" hx-target="#{{ target_id }}" hx-swap="innerHTML"
+      hx-trigger="change, keyup delay:300ms from:input[type=text]"
+      class="card p-4 mb-4 flex flex-wrap items-end gap-3">
+  {% for field in form %}
+    <div class="min-w-[160px]">
+      {% if field.label %}<label for="{{ field.id_for_label }}" class="label-base text-xs">{{ field.label }}</label>{% endif %}
+      {{ field }}
+    </div>
+  {% endfor %}
+</form>

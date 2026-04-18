@@ -1,0 +1,63 @@
+{% extends "base_app.html" %}
+{% block title %}Keywords — {{ request.project.name }} — Crane{% endblock %}
+
+{% block content %}
+{% url 'keyword_import' org_slug=request.organization.slug project_slug=request.project.slug as import_url %}
+{% url 'keyword_create' org_slug=request.organization.slug project_slug=request.project.slug as new_url %}
+{% include "components/_page_header.html" with title="Keyword bank" subtitle="Multilingual search terms, per category and status." secondary_label="Import CSV" secondary_url=import_url action_label="Add keyword" action_url=new_url action_icon="plus" %}
+
+<form method="get" class="card p-4 mb-5">
+  <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+    <input type="text" name="search" value="{{ filter_form.search.value|default:'' }}" placeholder="Search terms…">
+    <select name="status">
+      {% for value, label in filter_form.status.field.choices %}<option value="{{ value }}" {% if filter_form.status.value == value %}selected{% endif %}>{{ label }}</option>{% endfor %}
+    </select>
+    <select name="category">
+      <option value="">All categories</option>
+      {% for cat in filter_form.category.field.queryset %}<option value="{{ cat.pk }}" {% if filter_form.category.value|slugify == cat.pk|slugify %}selected{% endif %}>{{ cat.name }}</option>{% endfor %}
+    </select>
+    <input type="text" name="language" value="{{ filter_form.language.value|default:'' }}" placeholder="Language">
+    <select name="sort">
+      {% for value, label in filter_form.sort.field.choices %}<option value="{{ value }}" {% if filter_form.sort.value == value %}selected{% endif %}>{{ label }}</option>{% endfor %}
+    </select>
+  </div>
+  <button type="submit" class="btn-secondary btn-sm mt-3">Filter</button>
+</form>
+
+<table class="table-chrome">
+  <thead><tr><th>Term</th><th>Language</th><th>Category</th><th>Status</th><th>Matches</th>{% if is_coordinator %}<th>Actions</th>{% endif %}</tr></thead>
+  <tbody>
+    {% for kw in keywords %}
+    <tr>
+      <td>
+        <a href="{% url 'keyword_edit' org_slug=request.organization.slug project_slug=request.project.slug pk=kw.pk %}" class="font-medium text-crane-ink hover:underline">{{ kw.term }}</a>
+        {% if kw.shared %}<span class="pill-muted ml-1">shared</span>{% endif %}
+      </td>
+      <td class="text-crane-muted">{{ kw.language }}</td>
+      <td class="text-crane-muted">{{ kw.category.name|default:"—" }}</td>
+      <td>
+        {% if kw.status == 'active' %}{% include "components/_pill.html" with text=kw.get_status_display variant="success" %}
+        {% elif kw.status == 'candidate' %}{% include "components/_pill.html" with text=kw.get_status_display variant="warning" %}
+        {% elif kw.status == 'deprecated' %}{% include "components/_pill.html" with text=kw.get_status_display variant="muted" %}
+        {% endif %}
+      </td>
+      <td class="text-crane-muted">{{ kw.match_count_val|default:"0" }}</td>
+      {% if is_coordinator %}
+      <td>
+        {% if kw.status == 'candidate' %}
+        <form method="post" action="{% url 'keyword_status' org_slug=request.organization.slug project_slug=request.project.slug pk=kw.pk %}" class="inline-flex gap-2">{% csrf_token %}
+          <button name="status" value="active" class="btn-ghost btn-sm text-crane-success">Approve</button>
+          <button name="status" value="deprecated" class="btn-ghost btn-sm text-crane-danger">Reject</button>
+        </form>
+        {% endif %}
+      </td>
+      {% endif %}
+    </tr>
+    {% empty %}
+    <tr><td colspan="{% if is_coordinator %}6{% else %}5{% endif %}" class="text-center text-crane-muted py-10">No keywords found.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+{% if page_obj %}{% include "components/_pagination.html" with page_obj=page_obj %}{% endif %}
+{% endblock %}

@@ -1,0 +1,43 @@
+{% extends "base_app.html" %}
+{% block title %}{% if is_new %}New incident{% else %}Edit {{ incident.record_id }}{% endif %} — Crane{% endblock %}
+
+{% block content %}
+{% if is_new %}
+  {% include "components/_page_header.html" with title="New incident" %}
+{% else %}
+  {% include "components/_page_header.html" with title="Edit incident" subtitle=incident.record_id %}
+{% endif %}
+
+<form method="post" enctype="multipart/form-data" class="space-y-5 max-w-3xl">{% csrf_token %}
+  {% if form.non_field_errors %}<div class="flash-danger">{{ form.non_field_errors.0 }}</div>{% endif %}
+
+  <div class="card-padded space-y-4">
+    <h2 class="text-sm font-semibold uppercase tracking-wider text-crane-muted">Core fields</h2>
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      {% for field in form %}
+        {% if field.html_name|slice:":6" != "extra_" and field.html_name != "notes" %}
+          {% include "components/_form_field.html" with field=field %}
+        {% endif %}
+      {% endfor %}
+    </div>
+    {% if form.notes %}{% include "components/_form_field.html" with field=form.notes %}{% endif %}
+  </div>
+
+  <div class="card-padded space-y-4 [&:not(:has([name^=extra_]))]:hidden">
+    <h2 class="text-sm font-semibold uppercase tracking-wider text-crane-muted">Project-specific fields</h2>
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      {% for field in form %}
+        {% if field.html_name|slice:":6" == "extra_" %}
+          {% include "components/_form_field.html" with field=field %}
+        {% endif %}
+      {% endfor %}
+    </div>
+  </div>
+
+  <div class="flex gap-2 pt-2">
+    <button type="submit" name="submit" class="btn-primary">Submit</button>
+    <button type="submit" name="draft" class="btn-secondary">Save as draft</button>
+    <a href="{% url 'incident_list' org_slug=request.organization.slug project_slug=request.project.slug %}" class="btn-ghost">Cancel</a>
+  </div>
+</form>
+{% endblock %}

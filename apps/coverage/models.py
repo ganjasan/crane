@@ -1,10 +1,11 @@
 from django.conf import settings
 from django.db import models
 
-from apps.core.models import Platform, Project
+from apps.core.models import OrgScopedManager, Platform, Project
 
 
 class SearchSession(models.Model):
+    objects = OrgScopedManager()
     project = models.ForeignKey(
         Project, on_delete=models.CASCADE, related_name="search_sessions"
     )

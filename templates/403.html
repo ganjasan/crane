@@ -1,0 +1,11 @@
+{% extends "base_minimal.html" %}
+{% block title %}Access denied — Crane{% endblock %}
+
+{% block content %}
+<div class="text-center py-16">
+  <div class="text-sm font-semibold text-crane-muted uppercase tracking-wider mb-2">403</div>
+  <h1 class="text-3xl font-semibold text-crane-ink mb-3">Access denied</h1>
+  <p class="text-crane-muted max-w-md mx-auto">You don't have permission to view this page. Ask a coordinator or admin if you think this is a mistake.</p>
+  <a href="{% url 'org_selector' %}" class="btn-primary mt-6 inline-flex">Go to your workspaces</a>
+</div>
+{% endblock %}

@@ -1,0 +1,42 @@
+{% extends "base_app.html" %}
+{% block title %}{{ organization.name }} — Crane{% endblock %}
+
+{% block content %}
+{% url 'project_create' org_slug=organization.slug as new_project_url %}
+{% if can_manage %}
+  {% include "components/_page_header.html" with title=organization.name subtitle=organization.description action_label="New project" action_url=new_project_url action_icon="plus" %}
+{% else %}
+  {% include "components/_page_header.html" with title=organization.name subtitle=organization.description %}
+{% endif %}
+
+<div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-8">
+  {% include "components/_stat_card.html" with label="Projects" value=projects|length %}
+</div>
+
+<h2 class="text-sm font-semibold text-crane-ink uppercase tracking-wider mb-3">Projects</h2>
+
+{% if projects %}
+<div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
+  {% for project in projects %}
+  <a href="{% url 'project_dashboard' org_slug=organization.slug project_slug=project.slug %}"
+     class="card p-4 hover:border-crane-muted transition-colors">
+    <div class="flex items-start justify-between gap-2">
+      <div class="min-w-0">
+        <div class="text-base font-medium text-crane-ink truncate">{{ project.name }}</div>
+        {% if project.description %}
+          <div class="text-sm text-crane-muted mt-1 line-clamp-2">{{ project.description|truncatewords:18 }}</div>
+        {% endif %}
+      </div>
+      <code class="text-[11px] text-crane-muted font-mono">{{ project.slug }}</code>
+    </div>
+  </a>
+  {% endfor %}
+</div>
+{% else %}
+{% if can_manage %}
+  {% include "components/_empty_state.html" with icon="folder" heading="No projects yet" subtext="Create the first project to start collecting incidents." action_label="Create project" action_url=new_project_url %}
+{% else %}
+  {% include "components/_empty_state.html" with icon="folder" heading="No projects yet" subtext="Ask an admin to create the first project." %}
+{% endif %}
+{% endif %}
+{% endblock %}

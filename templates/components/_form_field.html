@@ -1,0 +1,12 @@
+{% comment %}
+  Variables:
+    field (BoundField, required)
+    placeholder (str, optional)
+    autofocus (bool, optional)
+{% endcomment %}
+<div class="mb-4">
+  {% if field.label %}<label for="{{ field.id_for_label }}" class="label-base">{{ field.label }}</label>{% endif %}
+  {{ field }}
+  {% if field.help_text %}<div class="help-text">{{ field.help_text }}</div>{% endif %}
+  {% for error in field.errors %}<div class="error-text">{{ error }}</div>{% endfor %}
+</div>

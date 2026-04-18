@@ -1,0 +1,30 @@
+{% comment %}HTMX partial — must not extend base.{% endcomment %}
+<table class="table-chrome">
+  <thead><tr><th>ID</th><th>Platform</th><th>Date</th><th>Status</th><th>Confidence</th><th>Collected by</th></tr></thead>
+  <tbody>
+    {% for incident in incidents %}
+    <tr>
+      <td>
+        <a href="{% url 'incident_detail' org_slug=request.organization.slug project_slug=request.project.slug pk=incident.pk %}" class="font-mono text-xs font-medium text-crane-ink hover:underline">{{ incident.record_id }}</a>
+        {% if incident.duplicate_of %}<span class="pill-warning ml-1" title="Duplicate of {{ incident.duplicate_of.record_id }}">dup</span>{% endif %}
+      </td>
+      <td class="text-crane-muted">{{ incident.platform.name|default:"—" }}</td>
+      <td class="text-crane-muted">{{ incident.date_of_post|date:"M d, Y"|default:"—" }}</td>
+      <td>
+        {% if incident.status == 'submitted' %}{% include "components/_pill.html" with text=incident.get_status_display variant="warning" %}
+        {% elif incident.status == 'reviewed' %}{% include "components/_pill.html" with text=incident.get_status_display variant="success" %}
+        {% elif incident.status == 'flagged' %}{% include "components/_pill.html" with text=incident.get_status_display variant="danger" %}
+        {% else %}{% include "components/_pill.html" with text=incident.get_status_display variant="muted" %}{% endif %}
+      </td>
+      <td class="text-crane-muted">{{ incident.get_confidence_display|default:"—" }}</td>
+      <td class="text-crane-muted">{{ incident.collected_by.email|default:"—" }}</td>
+    </tr>
+    {% empty %}
+    <tr><td colspan="6" class="text-center text-crane-muted py-10">No incidents found.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+{% if page_obj %}
+  {% include "components/_pagination.html" with page_obj=page_obj %}
+{% endif %}

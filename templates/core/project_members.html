@@ -1,0 +1,33 @@
+{% extends "base_app.html" %}
+{% block title %}Members — {{ project.name }} — Crane{% endblock %}
+
+{% block content %}
+{% include "components/_page_header.html" with title="Members" subtitle="Project access and roles." %}
+
+<table class="table-chrome mb-8 max-w-3xl">
+  <thead><tr><th>Email</th><th>Role</th><th>Joined</th></tr></thead>
+  <tbody>
+    {% for m in memberships %}
+    <tr>
+      <td>{{ m.user.email }}</td>
+      <td>
+        {% if m.role == 'coordinator' %}{% include "components/_pill.html" with text=m.get_role_display variant="info" %}
+        {% else %}{% include "components/_pill.html" with text=m.get_role_display variant="muted" %}{% endif %}
+      </td>
+      <td class="text-crane-muted">{{ m.joined_at|date:"M d, Y" }}</td>
+    </tr>
+    {% empty %}
+    <tr><td colspan="3" class="text-center text-crane-muted py-8">No members yet.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+<h2 class="text-sm font-semibold uppercase tracking-wider text-crane-muted mb-3">Add organization member</h2>
+<form method="post" class="card-padded space-y-4 max-w-2xl">{% csrf_token %}
+  <div class="grid grid-cols-2 gap-4">
+    {% include "components/_form_field.html" with field=add_form.user %}
+    {% include "components/_form_field.html" with field=add_form.role %}
+  </div>
+  <button type="submit" class="btn-primary">Add to project</button>
+</form>
+{% endblock %}

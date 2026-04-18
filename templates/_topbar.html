@@ -1,0 +1,24 @@
+{% comment %}
+  Topbar with breadcrumb. Used by base_app.html (no need in base_minimal which has its own header).
+  Optional context vars (set by individual views via template extra context):
+    page_title: str — overrides automatic last-breadcrumb segment
+{% endcomment %}
+<header class="h-14 bg-white border-b border-crane-border flex items-center px-6 sticky top-0 z-30">
+  <nav class="flex items-center gap-2 text-sm text-crane-muted min-w-0">
+    {% if request.organization %}
+      <a href="{% url 'org_dashboard' org_slug=request.organization.slug %}"
+         class="hover:text-crane-ink truncate">{{ request.organization.name }}</a>
+    {% else %}
+      <a href="{% url 'org_selector' %}" class="hover:text-crane-ink">Crane</a>
+    {% endif %}
+    {% if request.project %}
+      <span class="text-crane-border">/</span>
+      <a href="{% url 'project_dashboard' org_slug=request.organization.slug project_slug=request.project.slug %}"
+         class="hover:text-crane-ink truncate">{{ request.project.name }}</a>
+    {% endif %}
+    {% if page_title %}
+      <span class="text-crane-border">/</span>
+      <span class="text-crane-ink font-medium truncate">{{ page_title }}</span>
+    {% endif %}
+  </nav>
+</header>

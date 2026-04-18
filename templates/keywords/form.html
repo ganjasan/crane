@@ -1,0 +1,17 @@
+{% extends "base_app.html" %}
+{% block title %}{% if is_new %}Add keyword{% else %}Edit keyword{% endif %} — Crane{% endblock %}
+
+{% block content %}
+{% include "components/_page_header.html" with title=is_new|yesno:"Add keyword,Edit keyword" %}
+
+<form method="post" class="card-padded space-y-4 max-w-lg">{% csrf_token %}
+  {% for field in form %}
+    {% if not field.is_hidden %}{% include "components/_form_field.html" with field=field %}{% else %}{{ field }}{% endif %}
+  {% endfor %}
+  {% if form.non_field_errors %}<div class="flash-danger">{{ form.non_field_errors.0 }}</div>{% endif %}
+  <div class="flex gap-2 pt-2">
+    <button type="submit" class="btn-primary">{% if is_new %}Add{% else %}Save{% endif %}</button>
+    <a href="{% url 'keyword_list' org_slug=request.organization.slug project_slug=request.project.slug %}" class="btn-secondary">Cancel</a>
+  </div>
+</form>
+{% endblock %}

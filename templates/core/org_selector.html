@@ -1,0 +1,28 @@
+{% extends "base_minimal.html" %}
+{% block title %}Your organizations — Crane{% endblock %}
+
+{% block content %}
+{% url 'org_create' as org_create_url %}
+{% include "components/_page_header.html" with title="Your organizations" subtitle="Pick a workspace to continue." action_label="Create organization" action_url=org_create_url action_icon="plus" %}
+
+{% if memberships %}
+<div class="grid sm:grid-cols-2 gap-3">
+  {% for m in memberships %}
+  <a href="{% url 'org_dashboard' org_slug=m.organization.slug %}"
+     class="card p-4 hover:border-crane-muted transition-colors block">
+    <div class="flex items-start justify-between gap-3">
+      <div class="min-w-0">
+        <div class="text-base font-semibold text-crane-ink truncate">{{ m.organization.name }}</div>
+        {% if m.organization.description %}
+          <div class="text-sm text-crane-muted mt-1 line-clamp-2">{{ m.organization.description|truncatewords:20 }}</div>
+        {% endif %}
+      </div>
+      {% include "components/_pill.html" with text=m.get_role_display variant="muted" %}
+    </div>
+  </a>
+  {% endfor %}
+</div>
+{% else %}
+{% include "components/_empty_state.html" with icon="folder" heading="No organizations yet" subtext="Create your first organization to start coordinating your team's OSINT work." action_label="Create organization" action_url=org_create_url %}
+{% endif %}
+{% endblock %}

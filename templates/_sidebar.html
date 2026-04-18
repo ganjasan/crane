@@ -1,0 +1,119 @@
+{% comment %}
+  Sidebar for base_app.html. Reads from the `sidebar_nav` context processor:
+    sidebar_nav_items, sidebar_scope, sidebar_workspace_label,
+    sidebar_workspace_sub, sidebar_back_url, user_org_memberships.
+  Alpine state: { collapsed (bool, persisted to localStorage), switchOpen, mobileOpen }.
+{% endcomment %}
+<aside
+  x-data="{
+    collapsed: localStorage.getItem('crane_sidebar_collapsed') === '1',
+    switchOpen: false,
+    mobileOpen: false,
+    toggle() { this.collapsed = !this.collapsed; localStorage.setItem('crane_sidebar_collapsed', this.collapsed ? '1' : '0'); }
+  }"
+  :class="collapsed ? 'w-[60px]' : 'w-[240px]'"
+  class="hidden lg:flex flex-col h-screen sticky top-0 bg-crane-sidebar text-white/80 border-r border-white/5 transition-[width] duration-150 shrink-0"
+>
+  <!-- workspace header -->
+  <div class="px-3 py-3 border-b border-white/5 flex items-center gap-2">
+    {% if sidebar_back_url %}
+      <a href="{{ sidebar_back_url }}" class="text-white/50 hover:text-white shrink-0" title="Back to organization">
+        {% include "icons/chevron-left.html" %}
+      </a>
+    {% endif %}
+    <div class="w-7 h-7 rounded-md bg-white/10 flex items-center justify-center shrink-0 text-white">
+      {% include "icons/crane.html" %}
+    </div>
+    <div class="min-w-0 flex-1" x-show="!collapsed" x-transition.opacity>
+      <div class="text-[13px] font-semibold text-white truncate">{{ sidebar_workspace_label|default:"Crane" }}</div>
+      {% if sidebar_workspace_sub %}
+        <div class="text-[11px] text-white/50 truncate">{{ sidebar_workspace_sub }}</div>
+      {% endif %}
+    </div>
+    {% if user_org_memberships and user_org_memberships|length > 1 %}
+    <button @click="switchOpen = !switchOpen" x-show="!collapsed" class="text-white/50 hover:text-white shrink-0">
+      {% include "icons/chevron-down.html" %}
+    </button>
+    {% endif %}
+  </div>
+
+  <!-- workspace switcher dropdown -->
+  {% if user_org_memberships and user_org_memberships|length > 1 %}
+  <div x-show="switchOpen" @click.outside="switchOpen = false" x-transition.opacity x-cloak
+       class="mx-3 mt-2 bg-crane-sidebar-muted rounded-md border border-white/10 overflow-hidden">
+    {% for m in user_org_memberships %}
+      <a href="{% url 'org_dashboard' org_slug=m.organization.slug %}"
+         class="block px-3 py-2 text-sm text-white/80 hover:bg-white/5 hover:text-white truncate">
+        {{ m.organization.name }}
+      </a>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  <!-- nav -->
+  <nav class="p-2 flex-1 overflow-y-auto">
+    {% if sidebar_scope and not collapsed %}
+      <div class="sidebar-section-label">{% if sidebar_scope == 'project' %}Project{% else %}Workspace{% endif %}</div>
+    {% endif %}
+    {% for item in sidebar_nav_items %}
+      <a href="{{ item.url }}"
+         class="{% if item.active %}sidebar-link-active{% else %}sidebar-link{% endif %}"
+         data-label="{{ item.label }}"
+         :title="collapsed ? $el.dataset.label : null">
+        {% include "icons/"|add:item.icon_name|add:".html" %}
+        <span x-show="!collapsed" x-cloak class="truncate">{{ item.label }}</span>
+      </a>
+    {% endfor %}
+  </nav>
+
+  <!-- footer: account + collapse -->
+  <div class="border-t border-white/5 p-2 space-y-1">
+    {% if user.is_authenticated %}
+      <a href="{% url 'account_settings' %}" class="sidebar-link">
+        <div class="w-[18px] h-[18px] rounded-full bg-white/15 flex items-center justify-center text-[10px] font-semibold text-white shrink-0">
+          {{ user.email|slice:":1"|upper }}
+        </div>
+        <span x-show="!collapsed" x-cloak class="truncate">{{ user.email }}</span>
+      </a>
+      <a href="{% url 'logout' %}" class="sidebar-link">
+        {% include "icons/log-out.html" %}
+        <span x-show="!collapsed" x-cloak>Log out</span>
+      </a>
+    {% endif %}
+    <button @click="toggle()" class="sidebar-link w-full">
+      <span :class="collapsed ? 'rotate-180' : ''" class="transition-transform shrink-0">
+        {% include "icons/chevron-left.html" %}
+      </span>
+      <span x-show="!collapsed" x-cloak>Collapse</span>
+    </button>
+  </div>
+</aside>
+
+<!-- Mobile bottom-bar trigger (shown <lg) -->
+<div x-data="{ open: false }" class="lg:hidden">
+  <button @click="open = true" class="fixed bottom-4 left-4 z-40 btn-secondary shadow-lg">
+    {% include "icons/menu.html" %}
+  </button>
+  <div x-show="open" x-cloak class="fixed inset-0 z-50 bg-black/50" @click="open = false"></div>
+  <aside x-show="open" x-cloak x-transition
+         class="fixed inset-y-0 left-0 z-50 w-[260px] bg-crane-sidebar text-white/80 flex flex-col">
+    <div class="px-3 py-3 border-b border-white/5 flex items-center justify-between">
+      <div class="text-[13px] font-semibold text-white">{{ sidebar_workspace_label|default:"Crane" }}</div>
+      <button @click="open = false" class="text-white/50 hover:text-white">{% include "icons/x.html" %}</button>
+    </div>
+    <nav class="p-2 flex-1 overflow-y-auto">
+      {% if sidebar_scope %}<div class="sidebar-section-label">{% if sidebar_scope == 'project' %}Project{% else %}Workspace{% endif %}</div>{% endif %}
+      {% for item in sidebar_nav_items %}
+        <a href="{{ item.url }}" class="{% if item.active %}sidebar-link-active{% else %}sidebar-link{% endif %}">
+          {% include "icons/"|add:item.icon_name|add:".html" %}<span>{{ item.label }}</span>
+        </a>
+      {% endfor %}
+    </nav>
+    {% if user.is_authenticated %}
+    <div class="border-t border-white/5 p-2">
+      <a href="{% url 'account_settings' %}" class="sidebar-link"><span class="truncate">{{ user.email }}</span></a>
+      <a href="{% url 'logout' %}" class="sidebar-link">{% include "icons/log-out.html" %}<span>Log out</span></a>
+    </div>
+    {% endif %}
+  </aside>
+</div>

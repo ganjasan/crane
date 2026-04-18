@@ -1,0 +1,13 @@
+{% comment %}
+  Variables:
+    label (str, required)
+    value (str|int, required)
+    color_class (str, optional — e.g. "text-crane-danger", "text-crane-success")
+    href (str, optional — makes card clickable)
+    sub (str, optional — small caption below value)
+{% endcomment %}
+{% if href %}<a href="{{ href }}" class="card p-4 block hover:border-crane-muted transition-colors">{% else %}<div class="card p-4">{% endif %}
+  <div class="text-[10px] font-semibold tracking-wider text-crane-muted uppercase">{{ label }}</div>
+  <div class="mt-1 text-2xl font-semibold {{ color_class|default:'text-crane-ink' }}">{{ value }}</div>
+  {% if sub %}<div class="text-xs text-crane-muted mt-0.5">{{ sub }}</div>{% endif %}
+{% if href %}</a>{% else %}</div>{% endif %}

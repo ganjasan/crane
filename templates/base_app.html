@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block body %}
+<div class="flex min-h-screen bg-crane-surface">
+  {% include "_sidebar.html" %}
+  <div class="flex-1 min-w-0 flex flex-col">
+    {% include "_topbar.html" %}
+    <main class="flex-1 min-w-0 p-8">
+      {% include "components/_flash_messages.html" %}
+      {% block content %}{% endblock %}
+    </main>
+  </div>
+</div>
+{% endblock %}

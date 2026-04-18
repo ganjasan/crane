@@ -1,0 +1,55 @@
+{% extends "base_app.html" %}
+{% block title %}Coverage matrix — {{ request.project.name }} — Crane{% endblock %}
+
+{% block content %}
+{% url 'volunteer_activity' org_slug=request.organization.slug project_slug=request.project.slug as volunteers_url %}
+{% url 'coverage_log' org_slug=request.organization.slug project_slug=request.project.slug as log_url %}
+{% include "components/_page_header.html" with title="Coverage matrix" subtitle="Platform × language × category recency heatmap." secondary_label="Volunteer activity" secondary_url=volunteers_url action_label="Log search" action_url=log_url action_icon="plus" %}
+
+{% if matrix %}
+<div class="card overflow-x-auto">
+  <table class="min-w-full text-sm">
+    <thead>
+      <tr class="border-b border-crane-border">
+        <th class="px-3 py-2.5 text-left text-[10px] font-semibold tracking-wider text-crane-muted uppercase sticky left-0 bg-white">Platform / Language</th>
+        {% for cat in categories %}
+          <th class="px-3 py-2.5 text-center text-[10px] font-semibold tracking-wider text-crane-muted uppercase">{{ cat.name }}</th>
+        {% endfor %}
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in matrix %}
+      <tr class="border-b border-crane-border last:border-b-0">
+        <td class="px-3 py-2 text-sm font-medium whitespace-nowrap sticky left-0 bg-white">
+          {{ row.platform }} / {{ row.language }}
+        </td>
+        {% for cell in row.cells %}
+        <td class="px-3 py-2 text-center">
+          {% if cell.color == 'red' %}
+            <a href="{% url 'coverage_log' org_slug=request.organization.slug project_slug=request.project.slug %}?platform={{ row.platform }}&language={{ row.language }}&category={{ cell.category }}"
+               class="inline-flex w-9 h-9 rounded-md items-center justify-center text-xs font-medium bg-crane-danger-bg text-crane-danger hover:opacity-80 transition-opacity"
+               title="{{ cell.category }}: {% if cell.last_date %}{{ cell.days_ago }}d ago{% else %}never{% endif %} — click to log">
+              {% if cell.days_ago != None %}{{ cell.days_ago }}d{% else %}—{% endif %}
+            </a>
+          {% elif cell.color == 'yellow' %}
+            <span class="inline-flex w-9 h-9 rounded-md items-center justify-center text-xs font-medium bg-crane-warning-bg text-crane-warning" title="{{ cell.category }}: {{ cell.days_ago }}d ago">{{ cell.days_ago }}d</span>
+          {% else %}
+            <span class="inline-flex w-9 h-9 rounded-md items-center justify-center text-xs font-medium bg-crane-success-bg text-crane-success" title="{{ cell.category }}: {{ cell.days_ago }}d ago">{{ cell.days_ago }}d</span>
+          {% endif %}
+        </td>
+        {% endfor %}
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<div class="flex gap-4 mt-4 text-xs text-crane-muted">
+  <span class="flex items-center gap-1.5"><span class="inline-block w-3 h-3 rounded bg-crane-success-bg"></span> 0–7 days</span>
+  <span class="flex items-center gap-1.5"><span class="inline-block w-3 h-3 rounded bg-crane-warning-bg"></span> 8–30 days</span>
+  <span class="flex items-center gap-1.5"><span class="inline-block w-3 h-3 rounded bg-crane-danger-bg"></span> 30+ days or never</span>
+</div>
+{% else %}
+{% include "components/_empty_state.html" with icon="grid" heading="No coverage data yet" subtext="Configure platforms, languages, and keyword categories in project settings, then log search sessions." %}
+{% endif %}
+{% endblock %}

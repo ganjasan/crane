@@ -1,0 +1,101 @@
+{% extends "base_app.html" %}
+{% block title %}{{ request.project.name }} — Crane{% endblock %}
+
+{% block content %}
+{% url 'incident_create' org_slug=request.organization.slug project_slug=request.project.slug as new_incident_url %}
+{% include "components/_page_header.html" with title=request.project.name subtitle=request.project.description action_label="New incident" action_url=new_incident_url action_icon="plus" %}
+
+<!-- summary cards -->
+<div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
+  {% include "components/_stat_card.html" with label="Total incidents" value=summary.total_incidents %}
+  {% include "components/_stat_card.html" with label="This week" value=summary.incidents_this_week %}
+  {% include "components/_stat_card.html" with label="Active volunteers" value=summary.active_volunteers %}
+  {% include "components/_stat_card.html" with label="Coverage score" value=summary.coverage_score|stringformat:"s"|add:"%" %}
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+  <div class="lg:col-span-2 space-y-6">
+
+    {% if review_count %}
+    <div class="card p-4 flex items-center justify-between" style="border-color:var(--color-crane-warning);background:var(--color-crane-warning-bg)">
+      <div>
+        <div class="text-xs uppercase tracking-wider text-crane-warning font-semibold">Review queue</div>
+        <div class="text-xl font-semibold text-crane-ink mt-0.5">{{ review_count }} incidents awaiting review</div>
+      </div>
+      <a href="{% url 'incident_list' org_slug=request.organization.slug project_slug=request.project.slug %}?status=submitted" class="btn-primary">Review</a>
+    </div>
+    {% endif %}
+
+    <div class="card overflow-hidden">
+      <div class="card-header flex items-center justify-between">
+        <h2 class="text-sm font-semibold">Recent incidents</h2>
+        <a href="{% url 'incident_list' org_slug=request.organization.slug project_slug=request.project.slug %}" class="text-xs text-crane-muted hover:text-crane-ink">View all →</a>
+      </div>
+      {% if recent_incidents %}
+        <table class="w-full text-sm">
+          <tbody>
+          {% for inc in recent_incidents %}
+            <tr class="border-t border-crane-border first:border-t-0 hover:bg-crane-surface">
+              <td class="px-4 py-2.5">
+                <a href="{% url 'incident_detail' org_slug=request.organization.slug project_slug=request.project.slug pk=inc.pk %}" class="font-mono text-xs font-medium text-crane-ink hover:underline">{{ inc.record_id }}</a>
+              </td>
+              <td class="px-4 py-2.5">
+                {% if inc.status == 'submitted' %}{% include "components/_pill.html" with text=inc.get_status_display variant="warning" %}
+                {% elif inc.status == 'reviewed' %}{% include "components/_pill.html" with text=inc.get_status_display variant="success" %}
+                {% elif inc.status == 'flagged' %}{% include "components/_pill.html" with text=inc.get_status_display variant="danger" %}
+                {% else %}{% include "components/_pill.html" with text=inc.get_status_display variant="muted" %}{% endif %}
+              </td>
+              <td class="px-4 py-2.5 text-crane-muted text-xs">{{ inc.platform.name|default:"" }}</td>
+              <td class="px-4 py-2.5 text-crane-muted text-xs text-right">{{ inc.collected_by.email|default:"" }} · {{ inc.date_collected|date:"M d" }}</td>
+            </tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      {% else %}
+        <div class="px-4 py-10 text-sm text-crane-muted text-center">No incidents yet.</div>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="space-y-4">
+    <div class="card-padded space-y-2">
+      <h2 class="text-sm font-semibold mb-2">Quick actions</h2>
+      <a href="{% url 'incident_create' org_slug=request.organization.slug project_slug=request.project.slug %}" class="btn-primary w-full">{% include "icons/plus.html" %} New incident</a>
+      <a href="{% url 'coverage_log' org_slug=request.organization.slug project_slug=request.project.slug %}" class="btn-secondary w-full">Log search session</a>
+    </div>
+
+    {% if candidate_keywords %}
+    <a href="{% url 'keyword_list' org_slug=request.organization.slug project_slug=request.project.slug %}?status=candidate" class="card-padded block hover:border-crane-muted transition-colors">
+      <div class="text-xs uppercase tracking-wider text-crane-muted font-semibold">Keyword candidates</div>
+      <div class="text-2xl font-semibold mt-1">{{ candidate_keywords }}</div>
+      <div class="text-xs text-crane-muted mt-0.5">awaiting approval →</div>
+    </a>
+    {% endif %}
+
+    {% if top_gaps %}
+    <div class="card-padded">
+      <div class="flex items-center justify-between mb-3">
+        <h2 class="text-sm font-semibold text-crane-warning">Coverage gaps</h2>
+        <a href="{% url 'coverage_matrix' org_slug=request.organization.slug project_slug=request.project.slug %}" class="text-xs text-crane-muted hover:text-crane-ink">Matrix →</a>
+      </div>
+      <div class="space-y-1">
+        {% for gap in top_gaps %}
+        <a href="{% url 'coverage_log' org_slug=request.organization.slug project_slug=request.project.slug %}?platform={{ gap.platform }}&language={{ gap.language }}&category={{ gap.category }}" class="block px-2 py-1.5 text-xs rounded bg-crane-danger-bg text-crane-danger hover:opacity-80">
+          {{ gap.platform }} / {{ gap.language }} / {{ gap.category }}
+        </a>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+
+    {% if quality_issues %}
+    <div class="card-padded">
+      <h2 class="text-sm font-semibold text-crane-danger mb-2">Data quality</h2>
+      <ul class="space-y-1 text-sm text-crane-danger">
+        {% for issue in quality_issues %}<li>· {{ issue }}</li>{% endfor %}
+      </ul>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

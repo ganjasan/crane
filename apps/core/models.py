@@ -8,6 +8,27 @@ from django.utils import timezone
 from django.utils.text import slugify
 
 
+class OrgScopedQuerySet(models.QuerySet):
+    def for_organization(self, organization):
+        return self.filter(organization=organization)
+
+    def for_project(self, project):
+        return self.filter(project=project)
+
+
+class OrgScopedManager(models.Manager):
+    """Custom manager that provides organization/project scoping shortcuts."""
+
+    def get_queryset(self):
+        return OrgScopedQuerySet(self.model, using=self._db)
+
+    def for_organization(self, organization):
+        return self.get_queryset().for_organization(organization)
+
+    def for_project(self, project):
+        return self.get_queryset().for_project(project)
+
+
 class UserManager(BaseUserManager):
     def create_user(self, email, password=None, **extra_fields):
         if not email:
@@ -302,3 +323,19 @@ class Invitation(models.Model):
 
     def __str__(self):
         return f"Invite {self.email} → {self.organization}"
+
+
+class APIToken(models.Model):
+    user = models.OneToOneField(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="api_token"
+    )
+    key = models.CharField(max_length=64, unique=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def save(self, *args, **kwargs):
+        if not self.key:
+            self.key = secrets.token_urlsafe(32)
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"API token for {self.user.email}"

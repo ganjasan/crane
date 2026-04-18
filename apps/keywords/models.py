@@ -1,10 +1,11 @@
 from django.conf import settings
 from django.db import models
 
-from apps.core.models import KeywordCategory, Organization, Project
+from apps.core.models import KeywordCategory, OrgScopedManager, Organization, Project
 
 
 class Keyword(models.Model):
+    objects = OrgScopedManager()
     class Status(models.TextChoices):
         ACTIVE = "active", "Active"
         DEPRECATED = "deprecated", "Deprecated"

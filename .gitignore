@@ -33,6 +33,9 @@ Thumbs.db
 # Node (browser extension)
 node_modules/
 
+# Tailwind standalone binary (downloaded on demand)
+bin/tailwindcss
+
 # Docker
 *.log
 .venv/

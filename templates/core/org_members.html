@@ -1,0 +1,52 @@
+{% extends "base_app.html" %}
+{% block title %}Members — {{ organization.name }} — Crane{% endblock %}
+
+{% block content %}
+{% include "components/_page_header.html" with title="Members" subtitle="Manage organization access and invitations." %}
+
+<table class="table-chrome mb-8">
+  <thead><tr><th>Email</th><th>Role</th><th>Joined</th></tr></thead>
+  <tbody>
+    {% for m in memberships %}
+    <tr>
+      <td>{{ m.user.email }}</td>
+      <td>
+        {% if m.role == 'owner' %}{% include "components/_pill.html" with text=m.get_role_display variant="info" %}
+        {% elif m.role == 'admin' %}{% include "components/_pill.html" with text=m.get_role_display variant="info" %}
+        {% else %}{% include "components/_pill.html" with text=m.get_role_display variant="muted" %}{% endif %}
+      </td>
+      <td class="text-crane-muted">{{ m.joined_at|date:"M d, Y" }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+{% if pending_invites %}
+<h2 class="text-sm font-semibold uppercase tracking-wider text-crane-muted mb-3">Pending invitations</h2>
+<table class="table-chrome mb-8">
+  <thead><tr><th>Email</th><th>Role</th><th>Expires</th></tr></thead>
+  <tbody>
+    {% for inv in pending_invites %}
+    <tr>
+      <td>{{ inv.email }}</td>
+      <td class="text-crane-muted">{{ inv.get_org_role_display }}</td>
+      <td class="text-crane-muted">{{ inv.expires_at|date:"M d, Y" }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endif %}
+
+<h2 class="text-sm font-semibold uppercase tracking-wider text-crane-muted mb-3">Invite a new member</h2>
+<form method="post" class="card-padded space-y-4 max-w-2xl">
+  {% csrf_token %}
+  <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+    <div class="sm:col-span-2">{% include "components/_form_field.html" with field=invite_form.email %}</div>
+    {% include "components/_form_field.html" with field=invite_form.org_role %}
+    {% include "components/_form_field.html" with field=invite_form.project %}
+    {% include "components/_form_field.html" with field=invite_form.project_role %}
+  </div>
+  {% if invite_form.non_field_errors %}<div class="flash-danger">{{ invite_form.non_field_errors.0 }}</div>{% endif %}
+  <button type="submit" class="btn-primary">Send invitation</button>
+</form>
+{% endblock %}

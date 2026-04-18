@@ -1,0 +1,36 @@
+{% extends "base_app.html" %}
+{% block title %}Log search session — Crane{% endblock %}
+
+{% block content %}
+{% include "components/_page_header.html" with title="Log search session" subtitle="Record what you searched — drives the coverage matrix." %}
+
+<form method="post" class="card-padded space-y-5 max-w-xl">{% csrf_token %}
+  <div class="grid grid-cols-2 gap-4">
+    {% include "components/_form_field.html" with field=form.platform %}
+    {% include "components/_form_field.html" with field=form.language %}
+    {% include "components/_form_field.html" with field=form.date %}
+    {% include "components/_form_field.html" with field=form.duration_minutes %}
+    {% include "components/_form_field.html" with field=form.incidents_found %}
+  </div>
+
+  <div>
+    <label class="label-base">Keyword categories</label>
+    <div class="space-y-1.5">
+      {% for cb in form.keyword_categories_select %}
+        <div class="text-sm [&>label]:flex [&>label]:items-center [&>label]:gap-2">{{ cb }}</div>
+      {% empty %}
+        <p class="text-sm text-crane-muted">No categories configured for this project.</p>
+      {% endfor %}
+    </div>
+  </div>
+
+  {% include "components/_form_field.html" with field=form.notes %}
+
+  {% if form.non_field_errors %}<div class="flash-danger">{{ form.non_field_errors.0 }}</div>{% endif %}
+
+  <div class="flex gap-2 pt-2">
+    <button type="submit" class="btn-primary">Log session</button>
+    <a href="{% url 'coverage_matrix' org_slug=request.organization.slug project_slug=request.project.slug %}" class="btn-secondary">Cancel</a>
+  </div>
+</form>
+{% endblock %}

@@ -1,0 +1,143 @@
+{% extends "base_app.html" %}
+{% block title %}Settings — {{ request.project.name }} — Crane{% endblock %}
+
+{% block content %}
+{% url 'seed_import' org_slug=request.organization.slug project_slug=request.project.slug as import_url %}
+{% include "components/_page_header.html" with title="Project settings" subtitle="Configure platforms, languages, categories, and custom fields." secondary_label="Import CSV" secondary_url=import_url %}
+
+<div class="space-y-5 max-w-4xl">
+
+  <!-- Record ID prefix -->
+  <div class="card-padded">
+    <h2 class="text-sm font-semibold mb-3">Record ID prefix</h2>
+    <form method="post" class="flex gap-3 items-end">{% csrf_token %}
+      <input type="hidden" name="action" value="update_prefix">
+      <div>
+        <label class="label-base">Prefix (e.g. REC, BTCA)</label>
+        <input type="text" name="record_id_prefix" value="{{ record_id_prefix }}" class="w-32">
+      </div>
+      <button type="submit" class="btn-primary">Save</button>
+    </form>
+  </div>
+
+  <!-- Platforms -->
+  <div class="card-padded">
+    <h2 class="text-sm font-semibold mb-3">Platforms</h2>
+    {% if platforms %}
+    <div class="flex flex-wrap gap-2 mb-4">
+      {% for p in platforms %}
+        <span class="pill-muted">
+          {{ p.name }}
+          <form method="post" class="inline">{% csrf_token %}
+            <input type="hidden" name="action" value="delete_platform"><input type="hidden" name="pk" value="{{ p.pk }}">
+            <button type="submit" class="text-crane-muted hover:text-crane-danger ml-1">×</button>
+          </form>
+        </span>
+      {% endfor %}
+    </div>
+    {% endif %}
+    <form method="post" class="flex gap-2">{% csrf_token %}
+      <input type="hidden" name="action" value="add_platform">
+      <input type="text" name="name" placeholder="Platform name" required class="flex-1">
+      <input type="text" name="url_pattern" placeholder="URL pattern (regex, optional)" class="flex-1">
+      <button type="submit" class="btn-secondary">Add</button>
+    </form>
+  </div>
+
+  <!-- Languages -->
+  <div class="card-padded">
+    <h2 class="text-sm font-semibold mb-3">Languages</h2>
+    {% if languages %}
+    <div class="flex flex-wrap gap-2 mb-4">
+      {% for l in languages %}
+        <span class="pill-muted">
+          {{ l.name }}{% if l.code %} ({{ l.code }}){% endif %}
+          <form method="post" class="inline">{% csrf_token %}
+            <input type="hidden" name="action" value="delete_language"><input type="hidden" name="pk" value="{{ l.pk }}">
+            <button type="submit" class="text-crane-muted hover:text-crane-danger ml-1">×</button>
+          </form>
+        </span>
+      {% endfor %}
+    </div>
+    {% endif %}
+    <form method="post" class="flex gap-2">{% csrf_token %}
+      <input type="hidden" name="action" value="add_language">
+      <input type="text" name="name" placeholder="Language name" required class="flex-1">
+      <input type="text" name="code" placeholder="Code (en)" maxlength="10" class="w-24">
+      <button type="submit" class="btn-secondary">Add</button>
+    </form>
+  </div>
+
+  <!-- Categories -->
+  <div class="card-padded">
+    <h2 class="text-sm font-semibold mb-3">Keyword categories</h2>
+    {% if categories %}
+    <div class="flex flex-wrap gap-2 mb-4">
+      {% for c in categories %}
+        <span class="pill-muted">
+          {{ c.name }}
+          <form method="post" class="inline">{% csrf_token %}
+            <input type="hidden" name="action" value="delete_category"><input type="hidden" name="pk" value="{{ c.pk }}">
+            <button type="submit" class="text-crane-muted hover:text-crane-danger ml-1">×</button>
+          </form>
+        </span>
+      {% endfor %}
+    </div>
+    {% endif %}
+    <form method="post" class="flex gap-2">{% csrf_token %}
+      <input type="hidden" name="action" value="add_category">
+      <input type="text" name="name" placeholder="Category name" required class="flex-1">
+      <button type="submit" class="btn-secondary">Add</button>
+    </form>
+  </div>
+
+  <!-- Custom fields -->
+  <div class="card-padded">
+    <h2 class="text-sm font-semibold mb-3">Custom fields</h2>
+    {% if field_configs %}
+    <table class="table-chrome mb-4">
+      <thead><tr><th>Label</th><th>Name</th><th>Type</th><th>Required</th><th>Order</th><th></th></tr></thead>
+      <tbody>
+        {% for fc in field_configs %}
+        <tr>
+          <td>{{ fc.label }}</td>
+          <td class="font-mono text-xs text-crane-muted">{{ fc.field_name }}</td>
+          <td class="text-crane-muted">{{ fc.get_field_type_display }}</td>
+          <td class="text-crane-muted">{% if fc.required %}{% include "components/_pill.html" with text="Required" variant="info" %}{% endif %}</td>
+          <td class="text-crane-muted">{{ fc.order }}</td>
+          <td>
+            <form method="post" class="inline">{% csrf_token %}
+              <input type="hidden" name="action" value="delete_field"><input type="hidden" name="pk" value="{{ fc.pk }}">
+              <button type="submit" class="btn-ghost btn-sm text-crane-danger">Delete</button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% endif %}
+
+    <form method="post" class="space-y-3">{% csrf_token %}
+      <input type="hidden" name="action" value="add_field">
+      <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
+        <div><label class="label-base">Field name (slug)</label><input type="text" name="field_name" required placeholder="species_name"></div>
+        <div><label class="label-base">Label</label><input type="text" name="label" required placeholder="Species Name"></div>
+        <div><label class="label-base">Type</label>
+          <select name="field_type">
+            {% for val, lbl in field_config_form.field_type.field.choices %}{% if val %}<option value="{{ val }}">{{ lbl }}</option>{% endif %}{% endfor %}
+          </select>
+        </div>
+        <div><label class="label-base">Order</label><input type="number" name="order" value="0"></div>
+        <div class="flex items-end pb-2">
+          <label class="flex items-center gap-2 text-sm"><input type="checkbox" name="required"> Required</label>
+        </div>
+      </div>
+      <div>
+        <label class="label-base">Choices (one per line, for dropdown type)</label>
+        <textarea name="choices_text" rows="2"></textarea>
+      </div>
+      <button type="submit" class="btn-secondary">Add field</button>
+    </form>
+  </div>
+</div>
+{% endblock %}

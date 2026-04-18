@@ -1,10 +1,11 @@
 from django.conf import settings
 from django.db import models
 
-from apps.core.models import Organization, Platform, Project, ProjectSettings
+from apps.core.models import OrgScopedManager, Organization, Platform, Project, ProjectSettings
 
 
 class Incident(models.Model):
+    objects = OrgScopedManager()
     class Status(models.TextChoices):
         DRAFT = "draft", "Draft"
         SUBMITTED = "submitted", "Submitted"

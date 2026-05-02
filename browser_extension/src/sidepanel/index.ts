@@ -21,6 +21,7 @@ import type {
   CaptureMsgResponse,
   CheckResult,
   CheckUrlResponse,
+  DetectLanguageResponse,
   GetAuthStateResponse,
   GetProjectsResponse,
   ProjectSummary,
@@ -223,6 +224,7 @@ async function enterCaptureScreen(authState: AuthState): Promise<void> {
   await refreshTabContext();
   if (initialProject) {
     autoDetectPlatform(initialProject.platforms, state.currentUrl);
+    void autoDetectLanguage(initialProject);
     await checkCurrentTab(initialProject);
   }
 }
@@ -239,6 +241,7 @@ async function selectProject(projectId: string): Promise<void> {
     duplicate: null,
   });
   autoDetectPlatform(project.platforms, state.currentUrl);
+  void autoDetectLanguage(project);
   await checkCurrentTab(project);
 }
 
@@ -259,6 +262,22 @@ function autoDetectPlatform(platforms: PlatformSummary[], url: string): void {
       // Skip patterns that don't compile as JS regex.
     }
   }
+}
+
+// Ask the SW to read <html lang> and (fallback) chrome.i18n.detectLanguage
+// for the active tab, then match the result to one of the project's
+// configured language codes.
+async function autoDetectLanguage(project: ProjectSummary): Promise<void> {
+  if (project.languages.length === 0) return;
+  const resp = (await chrome.runtime.sendMessage({
+    type: "DETECT_LANGUAGE",
+  })) as DetectLanguageResponse;
+  if (!resp.ok || !resp.data) return;
+  const detected = resp.data.toLowerCase();
+  const match = project.languages.find(
+    (l) => (l.code || "").toLowerCase() === detected,
+  );
+  if (match) setState({ selectedLanguage: match.code });
 }
 
 async function refreshTabContext(): Promise<void> {
@@ -422,6 +441,7 @@ async function refreshAfterTabChange(): Promise<void> {
     // Reset to auto-detect so the new tab gets a fresh match.
     setState({ selectedPlatformId: "" });
     autoDetectPlatform(project.platforms, state.currentUrl);
+    void autoDetectLanguage(project);
     await checkCurrentTab(project);
   }
 }

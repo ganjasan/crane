@@ -154,6 +154,9 @@ export type SuggestMsgResponse = Result<SuggestItem[]>;
 export type ScreenshotRequest = { type: "TAKE_SCREENSHOT" };
 export type ScreenshotResponse = Result<string>; // data URL
 
+export type DetectLanguageRequest = { type: "DETECT_LANGUAGE" };
+export type DetectLanguageResponse = Result<string | null>; // ISO 639-1 code or null
+
 // Background → content script broadcasts (no response expected).
 export type PageUrlChangedBroadcast = {
   type: "PAGE_URL_CHANGED";
@@ -174,5 +177,6 @@ export type ExtensionMessage =
   | CaptureRequest
   | SuggestRequest
   | ScreenshotRequest
+  | DetectLanguageRequest
   | PageUrlChangedBroadcast
   | AuthBroadcast;

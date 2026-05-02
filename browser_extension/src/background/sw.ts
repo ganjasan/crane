@@ -17,6 +17,8 @@ import type {
   CheckUrlResponse,
   ClearAuthRequest,
   ClearAuthResponse,
+  DetectLanguageRequest,
+  DetectLanguageResponse,
   ExtensionMessage,
   GetAuthStateRequest,
   GetAuthStateResponse,
@@ -162,6 +164,47 @@ async function handleScreenshot(_msg: ScreenshotRequest): Promise<ScreenshotResp
   } catch (err) {
     return { ok: false, error: errorMessage(err) };
   }
+}
+
+// Inspect the active tab and return a best-guess ISO 639-1 language code.
+// First reads <html lang>; falls back to chrome.i18n on a body-text sample.
+async function handleDetectLanguage(
+  _msg: DetectLanguageRequest,
+): Promise<DetectLanguageResponse> {
+  try {
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    if (!tab?.id || !tab.url || !/^https?:/i.test(tab.url)) {
+      return { ok: true, data: null };
+    }
+    const results = await chrome.scripting.executeScript({
+      target: { tabId: tab.id },
+      func: extractLanguageHints,
+    });
+    const hint = results[0]?.result;
+    if (!hint) return { ok: true, data: null };
+
+    if (hint.htmlLang) return { ok: true, data: hint.htmlLang };
+
+    if (hint.sampleText && chrome.i18n?.detectLanguage) {
+      const detected = await chrome.i18n.detectLanguage(hint.sampleText);
+      const top = detected?.languages?.[0];
+      if (top && top.language && top.percentage >= 30) {
+        return { ok: true, data: top.language };
+      }
+    }
+    return { ok: true, data: null };
+  } catch (err) {
+    return { ok: false, error: errorMessage(err) };
+  }
+}
+
+// Injected: read <html lang> and a sample of visible body text.
+function extractLanguageHints(): { htmlLang: string; sampleText: string } {
+  const rawLang = (document.documentElement.getAttribute("lang") || "").trim().toLowerCase();
+  const match = /^[a-z]{2,3}/.exec(rawLang);
+  const htmlLang = match ? match[0] : "";
+  const text = (document.body?.innerText ?? "").replace(/\s+/g, " ").trim().slice(0, 4000);
+  return { htmlLang, sampleText: text };
 }
 
 // --- Full-page screenshot --------------------------------------------------
@@ -455,6 +498,7 @@ const handlers: { [K in ExtensionMessage["type"]]?: Handler<any, any> } = {
   CAPTURE: handleCapture,
   GET_SUGGESTIONS: handleSuggest,
   TAKE_SCREENSHOT: handleScreenshot,
+  DETECT_LANGUAGE: handleDetectLanguage,
 };
 
 chrome.runtime.onMessage.addListener((rawMsg, _sender, sendResponse) => {

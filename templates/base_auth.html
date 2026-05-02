@@ -5,12 +5,13 @@
 <div class="min-h-screen grid lg:grid-cols-2">
   <!-- brand panel -->
   <div class="hidden lg:flex flex-col justify-between bg-crane-sidebar text-white p-12 relative overflow-hidden">
-    <div class="flex items-center gap-3">
-      <div class="w-9 h-9 rounded-md bg-white/10 flex items-center justify-center">
+    <!-- centered watermark crane -->
+    <div class="absolute inset-0 flex items-center justify-center pointer-events-none select-none text-white/[0.06]">
+      <div class="w-[70%] aspect-square">
         {% include "icons/crane.html" %}
       </div>
-      <div class="text-lg font-semibold tracking-tight">Crane</div>
     </div>
+    <div class="relative z-10 text-lg font-semibold tracking-tight">Crane</div>
     <div class="relative z-10">
       <div class="text-3xl font-semibold leading-tight max-w-md">
         Collaborative OSINT for distributed teams.
@@ -20,10 +21,9 @@
         track of who searched what.
       </div>
     </div>
-    <div class="text-xs text-white/40">© Crane · open source</div>
+    <div class="relative z-10 text-xs text-white/40">© Crane · open source</div>
     <!-- subtle decorative pattern -->
     <div class="absolute -right-16 -bottom-16 w-96 h-96 rounded-full bg-white/[0.02]"></div>
-    <div class="absolute right-32 top-24 w-3 h-3 rounded-full bg-crane-danger"></div>
   </div>
 
   <!-- form panel -->

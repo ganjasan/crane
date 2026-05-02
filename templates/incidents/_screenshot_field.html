@@ -1,0 +1,39 @@
+{% comment %}
+  Custom rendering of the screenshot ImageField. Replaces Django's default
+  ClearableFileInput (which renders the file path as a plain link) with a
+  thumbnail preview + "Remove" checkbox + file input for replacement.
+
+  Variables:
+    field (BoundField for form.screenshot, required)
+
+  Stays compatible with ClearableFileInput's POST contract:
+    - <input type="file" name="screenshot">           — new upload
+    - <input type="checkbox" name="screenshot-clear"> — clear current file
+{% endcomment %}
+<div class="mb-4">
+  <label for="{{ field.id_for_label }}" class="label-base">{{ field.label }}</label>
+
+  {% if field.value %}
+    <div class="flex items-start gap-4 mb-2">
+      <a href="{{ field.value.url }}" target="_blank" rel="noopener"
+         class="block shrink-0 rounded-md border border-crane-border overflow-hidden bg-crane-surface hover:opacity-90 transition-opacity">
+        <img src="{{ field.value.url }}" alt="Current screenshot"
+             class="block max-h-40 max-w-xs object-contain" loading="lazy" />
+      </a>
+      <div class="text-sm text-crane-muted space-y-1">
+        <div>Current screenshot</div>
+        <label class="inline-flex items-center gap-2 cursor-pointer">
+          <input type="checkbox" name="{{ field.html_name }}-clear" id="{{ field.id_for_label }}-clear" />
+          <span>Remove</span>
+        </label>
+      </div>
+    </div>
+    <div class="text-xs text-crane-muted mb-1">Replace with new file:</div>
+  {% endif %}
+
+  <input type="file" name="{{ field.html_name }}" id="{{ field.id_for_label }}"
+         accept="image/*" {% if field.field.required and not field.value %}required{% endif %} />
+
+  {% if field.help_text %}<div class="help-text">{{ field.help_text }}</div>{% endif %}
+  {% for error in field.errors %}<div class="error-text">{{ error }}</div>{% endfor %}
+</div>

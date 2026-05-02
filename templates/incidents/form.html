@@ -15,11 +15,12 @@
     <h2 class="text-sm font-semibold uppercase tracking-wider text-crane-muted">Core fields</h2>
     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
       {% for field in form %}
-        {% if field.html_name|slice:":6" != "extra_" and field.html_name != "notes" %}
+        {% if field.html_name|slice:":6" != "extra_" and field.html_name != "notes" and field.html_name != "screenshot" %}
           {% include "components/_form_field.html" with field=field %}
         {% endif %}
       {% endfor %}
     </div>
+    {% if form.screenshot %}{% include "incidents/_screenshot_field.html" with field=form.screenshot %}{% endif %}
     {% if form.notes %}{% include "components/_form_field.html" with field=form.notes %}{% endif %}
   </div>
 

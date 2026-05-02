@@ -59,7 +59,7 @@ The standalone binary is downloaded on first `run_dev.sh` into `bin/` (gitignore
 
 ### Tests
 
-No test framework is configured yet. When adding tests, use Django's test runner:
+Use Django's test runner. Test docstrings follow the GIVEN/WHEN/THEN pattern.
 
 ```bash
 python manage.py test                          # all tests
@@ -67,6 +67,28 @@ python manage.py test apps.core                # single app
 python manage.py test apps.core.tests.TestFoo  # single test class
 python manage.py test apps.core.tests.TestFoo.test_bar  # single test method
 ```
+
+### Browser extension
+
+The Chrome MV3 extension lives under `browser_extension/` (a separate
+TypeScript codebase, not a Django app). Build with esbuild:
+
+```bash
+cd browser_extension
+npm install            # one-time, dev deps only
+npm run build          # one-shot → dist/
+npm run dev            # watch mode
+npm run typecheck      # tsc --noEmit
+```
+
+Three entry points compile to `dist/{background,sidepanel,content}.js`. The
+extension authenticates via `chrome.identity.launchWebAuthFlow` against
+`/auth/extension-link/`, then talks to the API endpoints under `/api/v1/`
+(`incidents/capture`, `incidents/check`, `projects`, `coverage/suggest`).
+URL normalization rules in `src/shared/normalize-url.ts` mirror
+`apps/incidents/utils.normalize_url` — keep both in sync. Message protocol
+(discriminated unions in `src/shared/types.ts`) is documented in
+`browser_extension/README.md`.
 
 ## Architecture
 

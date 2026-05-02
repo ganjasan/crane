@@ -93,4 +93,4 @@
 - [x] 12.1 Update `CLAUDE.md`: add browser_extension section (build commands, dev workflow, manifest overview, message protocol pointer)
 - [x] 12.2 Add `browser_extension/README.md` with install instructions for both dev (Load unpacked) and contributor onboarding
 - [x] 12.3 Run `openspec validate add-browser-extension` and resolve any warnings
-- [ ] 12.4 Open PR with screenshots: side panel three screens, content-script toast, capture round-trip
+- [x] 12.4 Open PR with screenshots: side panel three screens, content-script toast, capture round-trip

@@ -1,11 +1,15 @@
 ## ADDED Requirements
 
 ### Requirement: One-click incident capture from any web page
-The extension SHALL provide a side-panel surface that, when opened on any web page, pre-fills a capture form with the active tab's URL, page title, and a viewport screenshot. The volunteer SHALL be able to add a language (selected from the active project's configured languages) and a free-text note, then submit the form to create a `draft` Incident in the selected project.
+The extension SHALL provide a side-panel surface that, when opened on any web page, pre-fills a capture form with the active tab's URL, page title, and a **full-page screenshot** (the entire scrollable document, not just the visible viewport). The volunteer SHALL be able to add a language (selected from the active project's configured languages) and a free-text note, then submit the form to create a `draft` Incident in the selected project.
 
 #### Scenario: Volunteer captures a Telegram post
 - **WHEN** a volunteer is viewing a Telegram channel post and opens the Crane side panel
-- **THEN** the form is pre-filled with the post's URL, the channel/post title, and a screenshot of the visible viewport; after the volunteer picks a language and submits, the side panel shows a confirmation with the newly-created `record_id` and a link to open the full incident form in the Crane web app
+- **THEN** the form is pre-filled with the post's URL, the channel/post title, and a screenshot of the full page (captured by scrolling top-to-bottom and stitching viewport slices); after the volunteer picks a language and submits, the side panel shows a confirmation with the newly-created `record_id` and a link to open the full incident form in the Crane web app
+
+#### Scenario: Long page captured top-to-bottom
+- **WHEN** the active tab's `document.documentElement.scrollHeight` exceeds the viewport height (a long Reddit thread, a Telegram channel feed)
+- **THEN** the captured PNG covers the full scrollable document; fixed/sticky headers do not appear duplicated in each slice because they are temporarily neutralized during capture, and the page's original scroll position and styling are restored afterwards
 
 #### Scenario: Capture without a screenshot
 - **WHEN** a volunteer dismisses the auto-captured screenshot before submission

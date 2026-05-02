@@ -153,11 +153,173 @@ async function handleCapture(msg: CaptureRequest): Promise<CaptureMsgResponse> {
 
 async function handleScreenshot(_msg: ScreenshotRequest): Promise<ScreenshotResponse> {
   try {
-    const dataUrl = await chrome.tabs.captureVisibleTab({ format: "png" });
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    if (!tab?.id || !tab.url || !/^https?:/i.test(tab.url)) {
+      return { ok: false, error: "Cannot screenshot this page" };
+    }
+    const dataUrl = await captureFullPage(tab.id, tab.windowId);
     return { ok: true, data: dataUrl };
   } catch (err) {
     return { ok: false, error: errorMessage(err) };
   }
+}
+
+// --- Full-page screenshot --------------------------------------------------
+//
+// Algorithm: inject a preparation script (records page metrics, sets
+// position:fixed/sticky elements to position:absolute so they don't appear
+// in every slice, disables smooth-scroll). Scroll-and-capture in a loop,
+// pacing 600ms between captures to stay under chrome.tabs.captureVisibleTab's
+// ~2/sec quota. After all slices, restore page state. Stitch onto an
+// OffscreenCanvas and return the encoded data URL.
+
+type PrepareResult = {
+  totalHeight: number;
+  viewportHeight: number;
+  viewportWidth: number;
+  dpr: number;
+  originalScroll: number;
+};
+
+async function captureFullPage(tabId: number, windowId: number): Promise<string> {
+  const prepResults = await chrome.scripting.executeScript({
+    target: { tabId },
+    func: prepareForCapture,
+  });
+  const meta = prepResults[0]?.result;
+  if (!meta) throw new Error("Failed to read page dimensions");
+
+  const slices: { dataUrl: string; y: number }[] = [];
+  try {
+    const step = meta.viewportHeight;
+    const maxScroll = Math.max(0, meta.totalHeight - meta.viewportHeight);
+    let y = 0;
+    let captures = 0;
+    // Hard cap to avoid runaway loops on infinite-scroll pages.
+    const MAX_SLICES = 40;
+    while (captures < MAX_SLICES) {
+      const targetY = Math.min(y, maxScroll);
+      await chrome.scripting.executeScript({
+        target: { tabId },
+        func: scrollAndWait,
+        args: [targetY],
+      });
+      // Throttle for captureVisibleTab quota.
+      if (captures > 0) await sleep(600);
+      const dataUrl = await chrome.tabs.captureVisibleTab(windowId, { format: "png" });
+      slices.push({ dataUrl, y: targetY });
+      captures++;
+      if (y >= maxScroll) break;
+      y += step;
+    }
+  } finally {
+    await chrome.scripting
+      .executeScript({
+        target: { tabId },
+        func: restoreAfterCapture,
+        args: [meta.originalScroll],
+      })
+      .catch(noop);
+  }
+
+  return stitchSlices(slices, meta.totalHeight, meta.dpr);
+}
+
+// Functions below are injected into the page via chrome.scripting.executeScript.
+// They run in the page's isolated world; they MUST be self-contained (no closure
+// references) because esbuild serializes them by `.toString()`.
+
+function prepareForCapture(): PrepareResult {
+  const dpr = window.devicePixelRatio || 1;
+  const totalHeight = Math.max(
+    document.body.scrollHeight,
+    document.documentElement.scrollHeight,
+    document.body.offsetHeight,
+    document.documentElement.offsetHeight,
+  );
+  const viewportHeight = window.innerHeight;
+  const viewportWidth = window.innerWidth;
+  const originalScroll = window.scrollY;
+
+  // Neutralize fixed/sticky positioning so headers don't appear in every slice.
+  const els = document.querySelectorAll<HTMLElement>("*");
+  for (const el of Array.from(els)) {
+    const cs = getComputedStyle(el);
+    if (cs.position === "fixed" || cs.position === "sticky") {
+      el.dataset["craneOrigPos"] = el.style.position;
+      el.style.setProperty("position", "absolute", "important");
+    }
+  }
+  // Force instant scrolling between slices.
+  document.documentElement.dataset["craneOrigScroll"] = document.documentElement.style.scrollBehavior;
+  document.documentElement.style.scrollBehavior = "auto";
+
+  return { totalHeight, viewportHeight, viewportWidth, dpr, originalScroll };
+}
+
+async function scrollAndWait(y: number): Promise<void> {
+  window.scrollTo(0, y);
+  await new Promise<void>((resolve) =>
+    requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+  );
+}
+
+function restoreAfterCapture(originalScroll: number): void {
+  const els = document.querySelectorAll<HTMLElement>("[data-crane-orig-pos]");
+  for (const el of Array.from(els)) {
+    el.style.position = el.dataset["craneOrigPos"] ?? "";
+    delete el.dataset["craneOrigPos"];
+  }
+  if (document.documentElement.dataset["craneOrigScroll"] !== undefined) {
+    document.documentElement.style.scrollBehavior =
+      document.documentElement.dataset["craneOrigScroll"] ?? "";
+    delete document.documentElement.dataset["craneOrigScroll"];
+  }
+  window.scrollTo(0, originalScroll);
+}
+
+async function stitchSlices(
+  slices: { dataUrl: string; y: number }[],
+  totalHeightCss: number,
+  dpr: number,
+): Promise<string> {
+  if (slices.length === 0) throw new Error("No slices captured");
+  const first = slices[0]!;
+  const firstBlob = await (await fetch(first.dataUrl)).blob();
+  const firstBitmap = await createImageBitmap(firstBlob);
+  const widthPx = firstBitmap.width;
+  const totalHeightPx = Math.max(firstBitmap.height, Math.round(totalHeightCss * dpr));
+
+  const canvas = new OffscreenCanvas(widthPx, totalHeightPx);
+  const ctx = canvas.getContext("2d");
+  if (!ctx) throw new Error("OffscreenCanvas 2d context unavailable");
+
+  ctx.drawImage(firstBitmap, 0, Math.round(first.y * dpr));
+  firstBitmap.close();
+
+  for (let i = 1; i < slices.length; i++) {
+    const slice = slices[i]!;
+    const blob = await (await fetch(slice.dataUrl)).blob();
+    const bitmap = await createImageBitmap(blob);
+    ctx.drawImage(bitmap, 0, Math.round(slice.y * dpr));
+    bitmap.close();
+  }
+
+  const outBlob = await canvas.convertToBlob({ type: "image/png" });
+  return blobToDataUrl(outBlob);
+}
+
+function blobToDataUrl(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = () => reject(reader.error ?? new Error("FileReader failed"));
+    reader.readAsDataURL(blob);
+  });
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((r) => setTimeout(r, ms));
 }
 
 // --- Dispatch --------------------------------------------------------------

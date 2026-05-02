@@ -5,7 +5,7 @@ from the page they're investigating without leaving the browser.
 
 ## Three surfaces
 
-- **Side panel** — Capture form, project picker, "Suggest next searches" list.
+- **Side panel** — Capture form (with full-page screenshot), project picker, "Suggest next searches" list.
 - **Content script** — Compact toast on pages already in the user's project ("Already in Crane · REC-042").
 - **Toolbar icon badge** — Grey (not connected), green (connected, fresh), amber (duplicate), red (auth/network error).
 

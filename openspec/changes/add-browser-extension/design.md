@@ -31,7 +31,6 @@ Stakeholders:
 - **Chrome Web Store publishing**, signed package distribution, or auto-update channel. v1 is "load unpacked from `dist/`".
 - **Auto-detection of search activity** on platforms (e.g. parsing the user's typed query out of Telegram's search input). Suggestions are pull-only; the volunteer clicks "Get suggestions" themselves.
 - **Auto-creation of `SearchSession` records** when a suggestion is clicked. The session is still logged manually via the web app. (Future v2 will close this loop.)
-- **Full-page screenshot.** v1 captures the visible viewport via `chrome.tabs.captureVisibleTab`. Long-page captures require `chrome.scripting.executeScript` + scroll-and-stitch, which is fragile across sites.
 - **Custom field editing** in the panel. The capture form has only core fields (URL, title, screenshot, language, note); `extra_fields` are filled via the existing web form (link returned in the capture response).
 - **Offline queueing.** If the API is unreachable, the user sees an error and retries manually. No local IndexedDB queue.
 - **Multi-token support** (different tokens for different uses). The existing one-to-one `APIToken` model is reused as-is; the extension shares the user's single token.
@@ -130,6 +129,19 @@ CORS_ALLOW_HEADERS = [...defaults..., "authorization"]
 - **Longer TTL**: false positives compound — a deleted incident still shows as duplicate.
 
 **Rationale:** 5 minutes balances request volume against staleness. A volunteer who just captured a URL won't see "duplicate" appear for 5 min, but that's fine — they know they captured it.
+
+### 9b. Full-page screenshot via scroll-and-stitch
+
+**Decision:** The capture form attaches a screenshot of the **entire scrollable page**, not just the visible viewport. The background SW orchestrates the capture by injecting a preparation script (records page metrics, neutralizes `position: fixed/sticky` elements by switching them to `position: absolute`, disables smooth-scroll), then loops: `executeScript({scrollTo + 2× rAF})` → 600ms throttle → `chrome.tabs.captureVisibleTab` → push slice. After all slices are gathered, the SW restores page state (scroll, fixed positioning), then composes the final PNG on an `OffscreenCanvas` and returns a data URL.
+
+**Alternatives considered:**
+- **Viewport-only `captureVisibleTab`** (the previous v1 plan): one fast call, no orchestration, but volunteers complained that long Telegram channels and Reddit threads were truncated.
+- **Chrome DevTools Protocol `Page.captureScreenshot` with `captureBeyondViewport`**: produces a true full-page PNG in one call, but requires the `debugger` permission which shows a permanent "Crane started debugging this browser" banner — unacceptable UX.
+- **Third-party libraries (html2canvas, dom-to-image)**: render DOM to canvas without involving Chrome's capture pipeline; introduces ~50KB runtime dependency, mishandles iframes/canvas/fonts, and breaks our "no runtime npm deps" constraint.
+
+**Rationale:** Scroll-and-stitch via the existing `chrome.scripting` + `chrome.tabs.captureVisibleTab` permissions is the only path that (a) needs no extra permissions beyond what we already have, (b) ships zero new dependencies, (c) produces pixel-accurate output. Known limitation: pages whose layout depends on `position: sticky` headers (e.g. Twitter's nav) get a slightly distorted result because we forcibly set those elements to `position: absolute` during capture; the trade-off is acceptable for evidence-quality screenshots.
+
+**Throttle:** `chrome.tabs.captureVisibleTab` is rate-limited to ~2/sec by Chrome. We pace at 600ms between calls; an 8-viewport page captures in ~5 seconds.
 
 ### 9. Suggestion algorithm v1: stalest coverage cells
 

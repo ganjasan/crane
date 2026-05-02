@@ -192,15 +192,12 @@ async function selectProject(projectId: string): Promise<void> {
 
 async function refreshTabContext(): Promise<void> {
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  // Don't auto-capture; the user clicks "Create screenshot" when ready.
   setState({
     currentUrl: tab?.url ?? "",
     currentTitle: tab?.title ?? "",
+    screenshotDataUrl: null,
   });
-  if (tab && /^https?:/i.test(tab.url ?? "")) {
-    await takeScreenshot();
-  } else {
-    setState({ screenshotDataUrl: null });
-  }
 }
 
 async function takeScreenshot(): Promise<void> {

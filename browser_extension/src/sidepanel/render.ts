@@ -163,18 +163,12 @@ function renderCapture(state: AppState, dispatch: Dispatch): HTMLElement {
   });
   noteArea.value = state.note;
 
+  const canCapture = !!state.currentUrl && /^https?:/i.test(state.currentUrl);
   const screenshotEl = state.captureProgress
     ? renderCaptureProgress(state.captureProgress)
     : state.screenshotDataUrl
       ? h("img", { class: "screenshot", src: state.screenshotDataUrl, alt: "page screenshot" })
-      : h("div",
-          {
-            class: "screenshot",
-            style:
-              "display:flex;align-items:center;justify-content:center;color:var(--crane-muted);font-size:12px;",
-          },
-          "No screenshot",
-        );
+      : renderScreenshotPlaceholder(canCapture, dispatch);
 
   const dupBlock = state.duplicate
     ? h("div", { class: "alert alert-warn" },
@@ -211,10 +205,12 @@ function renderCapture(state: AppState, dispatch: Dispatch): HTMLElement {
         h("label", { class: "field" }, h("span", {}, "Language"), langSelect),
         h("label", { class: "field" }, h("span", {}, "Notes"), noteArea),
         h("div", { class: "row" },
-          h("button", {
-            class: "btn btn-ghost",
-            onClick: () => dispatch({ type: "RETAKE_SCREENSHOT" }),
-          }, "Retake screenshot"),
+          state.screenshotDataUrl
+            ? h("button", {
+                class: "btn btn-ghost",
+                onClick: () => dispatch({ type: "RETAKE_SCREENSHOT" }),
+              }, "Retake screenshot")
+            : null,
           h("span", { class: "grow" }),
           h("button", {
             class: "btn btn-primary",
@@ -323,6 +319,34 @@ function renderToast(state: AppState, dispatch: Dispatch): Node | null {
       style: "margin-left:0.5rem;",
       onClick: () => dispatch({ type: "DISMISS_TOAST" }),
     }, "Dismiss"),
+  );
+}
+
+function renderScreenshotPlaceholder(canCapture: boolean, dispatch: Dispatch): HTMLElement {
+  if (!canCapture) {
+    return h("div",
+      {
+        class: "screenshot",
+        style:
+          "display:flex;align-items:center;justify-content:center;color:var(--crane-muted);font-size:12px;",
+      },
+      "Screenshots are not available on this page.",
+    );
+  }
+  return h("button",
+    {
+      type: "button",
+      class: "screenshot",
+      style:
+        "display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0.4rem;cursor:pointer;border:1px dashed var(--crane-border);background:#f8fafc;color:var(--crane-primary);font-size:13px;font-weight:500;padding:0;",
+      onClick: () => dispatch({ type: "RETAKE_SCREENSHOT" }),
+    },
+    h("span", { style: "font-size:18px;line-height:1;" }, "📸"),
+    h("span", {}, "Create screenshot"),
+    h("span",
+      { style: "color:var(--crane-muted);font-weight:400;font-size:11px;" },
+      "Captures the full page top-to-bottom",
+    ),
   );
 }
 

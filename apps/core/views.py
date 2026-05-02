@@ -1,14 +1,16 @@
 import datetime
+import re
 
 from django.contrib import messages
 from django.contrib.auth import login
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.exceptions import PermissionDenied
 from django.db.models import Count, Q
-from django.http import Http404
+from django.http import Http404, HttpResponseBadRequest
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse
 from django.utils import timezone
+from django.views import View
 from django.views.generic import FormView, TemplateView, UpdateView
 
 from .forms import (
@@ -563,6 +565,33 @@ class AccountSettingsView(LoginRequiredMixin, TemplateView):
             messages.success(request, "API token revoked.")
 
         return redirect("account_settings")
+
+
+_EXT_ID_RE = re.compile(r"^[a-p]{32}$")
+
+
+class ExtensionLinkView(LoginRequiredMixin, View):
+    """GET /auth/extension-link/?ext_id=<chrome.runtime.id>
+
+    Generates or rotates the user's APIToken, then redirects to
+    `https://<ext_id>.chromiumapp.org/?token=...&email=...` — a magic URL
+    intercepted by Chrome's chrome.identity.launchWebAuthFlow before any
+    real navigation happens. The token never lands in browser history.
+    """
+
+    def get(self, request, *args, **kwargs):
+        ext_id = (request.GET.get("ext_id") or "").strip()
+        # Chrome extension IDs are always 32 lowercase letters from a-p.
+        if not _EXT_ID_RE.match(ext_id):
+            return HttpResponseBadRequest("Invalid or missing ext_id")
+
+        # Rotate any existing token, then create a fresh one.
+        APIToken.objects.filter(user=request.user).delete()
+        token = APIToken.objects.create(user=request.user)
+
+        from urllib.parse import urlencode
+        params = urlencode({"token": token.key, "email": request.user.email})
+        return redirect(f"https://{ext_id}.chromiumapp.org/?{params}")
 
 
 class SeedImportView(RequireProjectRole, TemplateView):

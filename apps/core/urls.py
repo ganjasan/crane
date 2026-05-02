@@ -27,6 +27,11 @@ urlpatterns = [
         views.AccountSettingsView.as_view(),
         name="account_settings",
     ),
+    path(
+        "auth/extension-link/",
+        views.ExtensionLinkView.as_view(),
+        name="extension_link",
+    ),
     # Org creation (must be before <slug:org_slug> catch-all)
     path("orgs/new/", views.OrgCreateView.as_view(), name="org_create"),
     # Org-scoped

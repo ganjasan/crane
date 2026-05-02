@@ -3,6 +3,8 @@ from django.db import models
 
 from apps.core.models import OrgScopedManager, Organization, Platform, Project, ProjectSettings
 
+from .utils import normalize_url
+
 
 class Incident(models.Model):
     objects = OrgScopedManager()
@@ -32,6 +34,7 @@ class Incident(models.Model):
         Platform, on_delete=models.SET_NULL, null=True, blank=True, related_name="incidents"
     )
     url = models.URLField(max_length=2048, blank=True)
+    url_normalized = models.CharField(max_length=2048, blank=True, db_index=True)
     screenshot = models.ImageField(upload_to="screenshots/%Y/%m/", blank=True)
     date_of_post = models.DateField(null=True, blank=True)
     date_collected = models.DateTimeField(auto_now_add=True)
@@ -76,10 +79,12 @@ class Incident(models.Model):
             self.record_id = self._generate_record_id()
         if not self.organization_id and self.project_id:
             self.organization_id = self.project.organization_id
-        # Duplicate detection
-        if self.url and not self.duplicate_of:
+        # Always recompute on save so url and url_normalized stay in sync
+        self.url_normalized = normalize_url(self.url)
+        # Duplicate detection on the normalized form (catches tracking-param variants)
+        if self.url_normalized and not self.duplicate_of:
             existing = (
-                Incident.objects.filter(project=self.project, url=self.url)
+                Incident.objects.filter(project=self.project, url_normalized=self.url_normalized)
                 .exclude(pk=self.pk)
                 .first()
             )

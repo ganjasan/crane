@@ -64,7 +64,10 @@ def _user_can_access_project(user, project):
 @method_decorator(token_required, name="dispatch")
 class IncidentCaptureView(View):
     """POST /api/v1/incidents/capture
-    Accepts: url, platform (name), title, screenshot (file), project_slug, org_slug.
+    Accepts: url, platform (name) or platform_id, title, screenshot (file),
+    project_slug, org_slug, language, note, date_of_post (YYYY-MM-DD),
+    location_mentioned, probable_location, confidence (high|medium|low),
+    extra_fields (JSON string of {field_name: value}).
     Creates a draft incident. Returns incident ID + annotation form URL.
     """
 
@@ -96,11 +99,14 @@ class IncidentCaptureView(View):
             return JsonResponse({"error": "Project not found"}, status=404)
 
         url = request.POST.get("url", "")
+        platform_id = request.POST.get("platform_id", "").strip()
         platform_name = request.POST.get("platform", "")
         screenshot = request.FILES.get("screenshot")
 
         platform = None
-        if platform_name:
+        if platform_id:
+            platform = Platform.objects.filter(project=project, pk=platform_id).first()
+        if not platform and platform_name:
             platform = Platform.objects.filter(project=project, name=platform_name).first()
         if not platform and url:
             for p in Platform.objects.filter(project=project).exclude(url_pattern=""):
@@ -111,6 +117,35 @@ class IncidentCaptureView(View):
         language = request.POST.get("language", "")
         note = request.POST.get("note") or request.POST.get("title", "")
 
+        # Optional core fields
+        date_of_post_raw = request.POST.get("date_of_post", "").strip()
+        date_of_post = None
+        if date_of_post_raw:
+            from datetime import date
+
+            try:
+                date_of_post = date.fromisoformat(date_of_post_raw)
+            except ValueError:
+                return JsonResponse({"error": "date_of_post must be YYYY-MM-DD"}, status=400)
+
+        location_mentioned = request.POST.get("location_mentioned", "")
+        probable_location = request.POST.get("probable_location", "")
+
+        confidence = request.POST.get("confidence", "")
+        if confidence and confidence not in dict(Incident.Confidence.choices):
+            return JsonResponse({"error": "Invalid confidence value"}, status=400)
+
+        extra_fields = {}
+        extra_raw = request.POST.get("extra_fields", "").strip()
+        if extra_raw:
+            try:
+                parsed = json.loads(extra_raw)
+            except json.JSONDecodeError:
+                return JsonResponse({"error": "extra_fields must be valid JSON"}, status=400)
+            if not isinstance(parsed, dict):
+                return JsonResponse({"error": "extra_fields must be a JSON object"}, status=400)
+            extra_fields = parsed
+
         incident = Incident(
             project=project,
             organization=org,
@@ -120,7 +155,13 @@ class IncidentCaptureView(View):
             language=language,
             status=Incident.Status.DRAFT,
             notes=note,
+            location_mentioned=location_mentioned,
+            probable_location=probable_location,
+            confidence=confidence,
+            extra_fields=extra_fields,
         )
+        if date_of_post is not None:
+            incident.date_of_post = date_of_post
         if screenshot:
             incident.screenshot = screenshot
         incident.save()
@@ -215,6 +256,8 @@ class ProjectListView(View):
     """
 
     def get(self, request, *args, **kwargs):
+        from apps.core.models import ProjectFieldConfig
+
         projects = _user_projects_qs(request.user).order_by("organization__name", "name")
         seen = set()
         out = []
@@ -231,6 +274,21 @@ class ProjectListView(View):
                 "languages": [
                     {"code": l.code, "name": l.name}
                     for l in Language.objects.filter(project=project).order_by("name")
+                ],
+                "platforms": [
+                    {"id": str(p.pk), "name": p.name, "url_pattern": p.url_pattern or ""}
+                    for p in Platform.objects.filter(project=project).order_by("name")
+                ],
+                "field_configs": [
+                    {
+                        "field_name": c.field_name,
+                        "label": c.label,
+                        "field_type": c.field_type,
+                        "required": c.required,
+                        "choices": c.choices or [],
+                        "order": c.order,
+                    }
+                    for c in ProjectFieldConfig.objects.filter(project=project).order_by("order")
                 ],
             })
         return JsonResponse({"projects": out}, status=200)

@@ -87,6 +87,14 @@ export const api = {
     form.append("title", payload.title);
     form.append("language", payload.language);
     form.append("note", payload.note);
+    if (payload.platform_id) form.append("platform_id", payload.platform_id);
+    if (payload.date_of_post) form.append("date_of_post", payload.date_of_post);
+    if (payload.location_mentioned) form.append("location_mentioned", payload.location_mentioned);
+    if (payload.probable_location) form.append("probable_location", payload.probable_location);
+    if (payload.confidence) form.append("confidence", payload.confidence);
+    if (Object.keys(payload.extra_fields).length > 0) {
+      form.append("extra_fields", JSON.stringify(payload.extra_fields));
+    }
     if (payload.screenshot_data_url) {
       form.append(
         "screenshot",

@@ -13,6 +13,23 @@ export type LanguageSummary = {
   name: string;
 };
 
+export type PlatformSummary = {
+  id: string;
+  name: string;
+  url_pattern: string;
+};
+
+export type FieldConfigType = "text" | "number" | "choice" | "boolean";
+
+export type FieldConfigSummary = {
+  field_name: string;
+  label: string;
+  field_type: FieldConfigType;
+  required: boolean;
+  choices: string[];
+  order: number;
+};
+
 export type ProjectSummary = {
   id: string;
   name: string;
@@ -20,6 +37,8 @@ export type ProjectSummary = {
   org_name: string;
   org_slug: string;
   languages: LanguageSummary[];
+  platforms: PlatformSummary[];
+  field_configs: FieldConfigSummary[];
 };
 
 export type CheckResult = {
@@ -65,6 +84,8 @@ export type AuthState = {
 
 // --- Capture form payload --------------------------------------------------
 
+export type Confidence = "" | "high" | "medium" | "low";
+
 export type CapturePayload = {
   org_slug: string;
   project_slug: string;
@@ -72,7 +93,13 @@ export type CapturePayload = {
   title: string;
   language: string;
   note: string;
-  // base64 data URL of the visible viewport screenshot
+  platform_id: string;
+  date_of_post: string;          // YYYY-MM-DD or ""
+  location_mentioned: string;
+  probable_location: string;
+  confidence: Confidence;
+  extra_fields: Record<string, string | number | boolean | null>;
+  // base64 data URL of the captured screenshot
   screenshot_data_url: string | null;
 };
 

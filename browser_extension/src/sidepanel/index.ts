@@ -45,7 +45,13 @@ export type Action =
   | { type: "DISCONNECT" }
   | { type: "SELECT_PROJECT"; projectId: string }
   | { type: "SELECT_LANGUAGE"; code: string }
+  | { type: "SELECT_PLATFORM"; platformId: string }
   | { type: "EDIT_NOTE"; value: string }
+  | { type: "EDIT_DATE_OF_POST"; value: string }
+  | { type: "EDIT_LOCATION_MENTIONED"; value: string }
+  | { type: "EDIT_PROBABLE_LOCATION"; value: string }
+  | { type: "SELECT_CONFIDENCE"; value: import("@shared/types").Confidence }
+  | { type: "EDIT_EXTRA_FIELD"; name: string; value: string | number | boolean }
   | { type: "RETAKE_SCREENSHOT" }
   | { type: "SUBMIT_CAPTURE"; force?: boolean }
   | { type: "GO_TO_SCREEN"; screen: Screen }
@@ -72,8 +78,26 @@ function dispatch(action: Action): void {
     case "SELECT_LANGUAGE":
       setState({ selectedLanguage: action.code });
       return;
+    case "SELECT_PLATFORM":
+      setState({ selectedPlatformId: action.platformId });
+      return;
     case "EDIT_NOTE":
       setState({ note: action.value });
+      return;
+    case "EDIT_DATE_OF_POST":
+      setState({ dateOfPost: action.value });
+      return;
+    case "EDIT_LOCATION_MENTIONED":
+      setState({ locationMentioned: action.value });
+      return;
+    case "EDIT_PROBABLE_LOCATION":
+      setState({ probableLocation: action.value });
+      return;
+    case "SELECT_CONFIDENCE":
+      setState({ confidence: action.value });
+      return;
+    case "EDIT_EXTRA_FIELD":
+      setState({ extraFields: { ...state.extraFields, [action.name]: action.value } });
       return;
     case "RETAKE_SCREENSHOT":
       void takeScreenshot();
@@ -187,6 +211,12 @@ async function enterCaptureScreen(authState: AuthState): Promise<void> {
     screen: "capture",
     selectedProjectId: initialProject?.id ?? null,
     selectedLanguage: initialProject?.languages[0]?.code ?? "",
+    selectedPlatformId: "",
+    dateOfPost: "",
+    locationMentioned: "",
+    probableLocation: "",
+    confidence: "",
+    extraFields: {},
     duplicate: null,
   });
   await refreshTabContext();
@@ -200,6 +230,8 @@ async function selectProject(projectId: string): Promise<void> {
   setState({
     selectedProjectId: projectId,
     selectedLanguage: project.languages[0]?.code ?? "",
+    selectedPlatformId: "",
+    extraFields: {},
     duplicate: null,
   });
   await checkCurrentTab(project);
@@ -264,6 +296,24 @@ async function submitCapture(force: boolean): Promise<void> {
     }
   }
 
+  // Validate required extra fields before round-tripping to the server.
+  const missing = project.field_configs
+    .filter((c) => c.required)
+    .filter((c) => {
+      const v = state.extraFields[c.field_name];
+      if (c.field_type === "boolean") return false; // unchecked == false is acceptable
+      return v === undefined || v === null || v === "";
+    });
+  if (missing.length > 0) {
+    setState({
+      toast: {
+        mode: "error",
+        text: `Missing required field: ${missing.map((c) => c.label).join(", ")}`,
+      },
+    });
+    return;
+  }
+
   setState({ busy: true, toast: null });
   const captureResp = (await chrome.runtime.sendMessage({
     type: "CAPTURE",
@@ -274,6 +324,12 @@ async function submitCapture(force: boolean): Promise<void> {
       title: state.currentTitle,
       language: state.selectedLanguage,
       note: state.note,
+      platform_id: state.selectedPlatformId,
+      date_of_post: state.dateOfPost,
+      location_mentioned: state.locationMentioned,
+      probable_location: state.probableLocation,
+      confidence: state.confidence,
+      extra_fields: state.extraFields,
       screenshot_data_url: state.screenshotDataUrl,
     },
   })) as CaptureMsgResponse;

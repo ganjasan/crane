@@ -9,6 +9,7 @@
 
 import type { AppState } from "./state";
 import type { Action } from "./index";
+import type { Confidence, FieldConfigSummary, ProjectSummary } from "@shared/types";
 
 type Dispatch = (action: Action) => void;
 
@@ -164,6 +165,65 @@ function renderCapture(state: AppState, dispatch: Dispatch): HTMLElement {
   });
   noteArea.value = state.note;
 
+  const platformOptions = h(
+    "select",
+    {
+      disabled: !project,
+      onChange: (ev: Event) =>
+        dispatch({ type: "SELECT_PLATFORM", platformId: (ev.target as HTMLSelectElement).value }),
+    },
+    h("option", { value: "" }, "Auto-detect"),
+    ...((project?.platforms ?? []).map((p) =>
+      h("option", { value: p.id, selected: p.id === state.selectedPlatformId }, p.name),
+    )),
+  );
+
+  const dateInput = h("input", {
+    type: "date",
+    onInput: (ev: Event) =>
+      dispatch({ type: "EDIT_DATE_OF_POST", value: (ev.target as HTMLInputElement).value }),
+  });
+  (dateInput as HTMLInputElement).value = state.dateOfPost;
+
+  const locMentionedInput = h("input", {
+    type: "text",
+    placeholder: "As written on the page",
+    onInput: (ev: Event) =>
+      dispatch({
+        type: "EDIT_LOCATION_MENTIONED",
+        value: (ev.target as HTMLInputElement).value,
+      }),
+  });
+  (locMentionedInput as HTMLInputElement).value = state.locationMentioned;
+
+  const probableLocInput = h("input", {
+    type: "text",
+    placeholder: "Best inference",
+    onInput: (ev: Event) =>
+      dispatch({
+        type: "EDIT_PROBABLE_LOCATION",
+        value: (ev.target as HTMLInputElement).value,
+      }),
+  });
+  (probableLocInput as HTMLInputElement).value = state.probableLocation;
+
+  const confidenceSelect = h(
+    "select",
+    {
+      onChange: (ev: Event) =>
+        dispatch({
+          type: "SELECT_CONFIDENCE",
+          value: (ev.target as HTMLSelectElement).value as Confidence,
+        }),
+    },
+    h("option", { value: "", selected: state.confidence === "" }, "—"),
+    h("option", { value: "high", selected: state.confidence === "high" }, "High"),
+    h("option", { value: "medium", selected: state.confidence === "medium" }, "Medium"),
+    h("option", { value: "low", selected: state.confidence === "low" }, "Low"),
+  );
+
+  const extraFieldsBlock = renderExtraFields(project, state.extraFields, dispatch);
+
   const canCapture = !!state.currentUrl && /^https?:/i.test(state.currentUrl);
   const screenshotEl = state.captureProgress
     ? renderCaptureProgress(state.captureProgress)
@@ -210,8 +270,14 @@ function renderCapture(state: AppState, dispatch: Dispatch): HTMLElement {
       screenshotEl,
       h("div", { style: "display:flex;flex-direction:column;gap:0.75rem;margin-top:0.75rem;" },
         h("label", { class: "field" }, h("span", {}, "Project"), projectSelect),
+        h("label", { class: "field" }, h("span", {}, "Platform"), platformOptions),
         h("label", { class: "field" }, h("span", {}, "Language"), langSelect),
+        h("label", { class: "field" }, h("span", {}, "Date of post"), dateInput),
+        h("label", { class: "field" }, h("span", {}, "Location mentioned"), locMentionedInput),
+        h("label", { class: "field" }, h("span", {}, "Probable location"), probableLocInput),
+        h("label", { class: "field" }, h("span", {}, "Confidence"), confidenceSelect),
         h("label", { class: "field" }, h("span", {}, "Notes"), noteArea),
+        extraFieldsBlock,
         h("div", { class: "row" },
           state.screenshotDataUrl
             ? h("button", {
@@ -328,6 +394,80 @@ function renderToast(state: AppState, dispatch: Dispatch): Node | null {
       onClick: () => dispatch({ type: "DISMISS_TOAST" }),
     }, "Dismiss"),
   );
+}
+
+function renderExtraFields(
+  project: ProjectSummary | undefined,
+  values: Record<string, string | number | boolean>,
+  dispatch: Dispatch,
+): Node {
+  const configs = project?.field_configs ?? [];
+  if (configs.length === 0) return document.createDocumentFragment();
+  return h("div",
+    { style: "display:flex;flex-direction:column;gap:0.75rem;margin-top:0.25rem;padding-top:0.75rem;border-top:1px dashed var(--crane-border);" },
+    h("div", { style: "font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.04em;color:var(--crane-muted);" },
+      "Project-specific fields",
+    ),
+    ...configs.map((c) => renderExtraField(c, values[c.field_name], dispatch)),
+  );
+}
+
+function renderExtraField(
+  config: FieldConfigSummary,
+  value: string | number | boolean | undefined,
+  dispatch: Dispatch,
+): HTMLElement {
+  const labelText = config.required ? `${config.label} *` : config.label;
+  const onChange = (raw: string | boolean) =>
+    dispatch({
+      type: "EDIT_EXTRA_FIELD",
+      name: config.field_name,
+      value:
+        config.field_type === "number"
+          ? raw === "" ? "" : Number(raw)
+          : raw,
+    });
+
+  let control: HTMLElement;
+  if (config.field_type === "choice") {
+    const options = [h("option", { value: "" }, "—")];
+    for (const c of config.choices) {
+      options.push(h("option", { value: c, selected: value === c }, c));
+    }
+    control = h("select",
+      {
+        onChange: (ev: Event) => onChange((ev.target as HTMLSelectElement).value),
+      },
+      ...options,
+    );
+  } else if (config.field_type === "boolean") {
+    const cb = h("input", {
+      type: "checkbox",
+      onChange: (ev: Event) => onChange((ev.target as HTMLInputElement).checked),
+    }) as HTMLInputElement;
+    cb.checked = Boolean(value);
+    return h("label",
+      { class: "field", style: "flex-direction:row;align-items:center;gap:0.5rem;" },
+      cb,
+      h("span", { style: "font-weight:500;color:var(--crane-text);" }, labelText),
+    );
+  } else if (config.field_type === "number") {
+    const input = h("input", {
+      type: "number",
+      onInput: (ev: Event) => onChange((ev.target as HTMLInputElement).value),
+    }) as HTMLInputElement;
+    input.value = value === undefined || value === null ? "" : String(value);
+    control = input;
+  } else {
+    const input = h("input", {
+      type: "text",
+      onInput: (ev: Event) => onChange((ev.target as HTMLInputElement).value),
+    }) as HTMLInputElement;
+    input.value = value === undefined || value === null ? "" : String(value);
+    control = input;
+  }
+
+  return h("label", { class: "field" }, h("span", {}, labelText), control);
 }
 
 function renderScreenshotModal(imageSrc: string, dispatch: Dispatch): HTMLElement {

@@ -4,6 +4,7 @@ import type {
   AuthState,
   CaptureResponse,
   CheckResult,
+  Confidence,
   ProjectSummary,
   SuggestItem,
 } from "@shared/types";
@@ -31,6 +32,14 @@ export type AppState = {
   note: string;
   duplicate: CheckResult | null;
 
+  // Extra core fields mirrored from the web edit form.
+  selectedPlatformId: string;
+  dateOfPost: string;
+  locationMentioned: string;
+  probableLocation: string;
+  confidence: Confidence;
+  extraFields: Record<string, string | number | boolean>;
+
   captureProgress: { current: number; total: number } | null;
 
   suggestions: SuggestItem[];
@@ -53,6 +62,12 @@ export function initialState(): AppState {
     screenshotDataUrl: null,
     note: "",
     duplicate: null,
+    selectedPlatformId: "",
+    dateOfPost: "",
+    locationMentioned: "",
+    probableLocation: "",
+    confidence: "",
+    extraFields: {},
     captureProgress: null,
     suggestions: [],
     lastCapture: null,

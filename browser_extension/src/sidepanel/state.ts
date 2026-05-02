@@ -36,6 +36,7 @@ export type AppState = {
   suggestions: SuggestItem[];
   lastCapture: CaptureResponse | null;
   toast: Toast | null;
+  modalImage: string | null;
 };
 
 export function initialState(): AppState {
@@ -56,5 +57,6 @@ export function initialState(): AppState {
     suggestions: [],
     lastCapture: null,
     toast: null,
+    modalImage: null,
   };
 }

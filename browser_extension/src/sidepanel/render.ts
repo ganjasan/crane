@@ -55,6 +55,7 @@ export function render(state: AppState, root: HTMLElement, dispatch: Dispatch): 
       renderScreen(state, dispatch),
       renderToast(state, dispatch),
     ),
+    state.modalImage ? renderScreenshotModal(state.modalImage, dispatch) : null,
   );
   root.replaceChildren(...Array.from(tree.childNodes));
 }
@@ -167,7 +168,14 @@ function renderCapture(state: AppState, dispatch: Dispatch): HTMLElement {
   const screenshotEl = state.captureProgress
     ? renderCaptureProgress(state.captureProgress)
     : state.screenshotDataUrl
-      ? h("img", { class: "screenshot", src: state.screenshotDataUrl, alt: "page screenshot" })
+      ? h("img", {
+          class: "screenshot",
+          src: state.screenshotDataUrl,
+          alt: "page screenshot — click to view full size",
+          title: "Click to view full size",
+          style: "cursor: zoom-in;",
+          onClick: () => dispatch({ type: "OPEN_SCREENSHOT_MODAL" }),
+        })
       : renderScreenshotPlaceholder(canCapture, dispatch);
 
   const dupBlock = state.duplicate
@@ -320,6 +328,86 @@ function renderToast(state: AppState, dispatch: Dispatch): Node | null {
       onClick: () => dispatch({ type: "DISMISS_TOAST" }),
     }, "Dismiss"),
   );
+}
+
+function renderScreenshotModal(imageSrc: string, dispatch: Dispatch): HTMLElement {
+  const close = () => dispatch({ type: "CLOSE_SCREENSHOT_MODAL" });
+  const backdrop = h("div",
+    {
+      style: [
+        "position: fixed",
+        "inset: 0",
+        "z-index: 9999",
+        "background: rgba(15, 23, 42, 0.85)",
+        "display: flex",
+        "flex-direction: column",
+      ].join(";"),
+      onClick: (ev: Event) => {
+        // Close only when clicking the backdrop itself, not the inner content.
+        if (ev.target === ev.currentTarget) close();
+      },
+    },
+    h("div",
+      {
+        style: [
+          "display: flex",
+          "align-items: center",
+          "justify-content: space-between",
+          "padding: 0.6rem 0.9rem",
+          "background: rgba(15, 23, 42, 0.95)",
+          "color: #f8fafc",
+          "font-size: 12.5px",
+          "border-bottom: 1px solid rgba(248, 250, 252, 0.08)",
+        ].join(";"),
+      },
+      h("span", {}, "Full-page screenshot"),
+      h("button",
+        {
+          type: "button",
+          "aria-label": "Close",
+          style: [
+            "background: transparent",
+            "color: #cbd5e1",
+            "border: none",
+            "cursor: pointer",
+            "font: 18px/1 system-ui",
+            "padding: 4px 8px",
+            "border-radius: 4px",
+          ].join(";"),
+          onClick: close,
+        },
+        "×",
+      ),
+    ),
+    h("div",
+      {
+        style: [
+          "flex: 1 1 auto",
+          "overflow: auto",
+          "padding: 0.75rem",
+        ].join(";"),
+        onClick: (ev: Event) => {
+          if (ev.target === ev.currentTarget) close();
+        },
+      },
+      h("img",
+        {
+          src: imageSrc,
+          alt: "full screenshot",
+          style: [
+            "display: block",
+            "width: 100%",
+            "height: auto",
+            "max-width: 100%",
+            "border-radius: 6px",
+            "box-shadow: 0 12px 32px rgba(0, 0, 0, 0.4)",
+            "background: #fff",
+          ].join(";"),
+        },
+      ),
+    ),
+  );
+  return backdrop;
 }
 
 function renderScreenshotPlaceholder(canCapture: boolean, dispatch: Dispatch): HTMLElement {

@@ -51,7 +51,9 @@ export type Action =
   | { type: "GO_TO_SCREEN"; screen: Screen }
   | { type: "FETCH_SUGGESTIONS" }
   | { type: "OPEN_URL"; url: string }
-  | { type: "DISMISS_TOAST" };
+  | { type: "DISMISS_TOAST" }
+  | { type: "OPEN_SCREENSHOT_MODAL" }
+  | { type: "CLOSE_SCREENSHOT_MODAL" };
 
 function dispatch(action: Action): void {
   switch (action.type) {
@@ -92,8 +94,21 @@ function dispatch(action: Action): void {
     case "DISMISS_TOAST":
       setState({ toast: null });
       return;
+    case "OPEN_SCREENSHOT_MODAL":
+      if (state.screenshotDataUrl) setState({ modalImage: state.screenshotDataUrl });
+      return;
+    case "CLOSE_SCREENSHOT_MODAL":
+      setState({ modalImage: null });
+      return;
   }
 }
+
+// Close the screenshot modal on Escape.
+document.addEventListener("keydown", (ev) => {
+  if (ev.key === "Escape" && state.modalImage) {
+    dispatch({ type: "CLOSE_SCREENSHOT_MODAL" });
+  }
+});
 
 // --- Async actions ---------------------------------------------------------
 

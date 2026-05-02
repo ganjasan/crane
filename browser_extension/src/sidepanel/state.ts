@@ -40,6 +40,9 @@ export type AppState = {
   confidence: Confidence;
   extraFields: Record<string, string | number | boolean>;
 
+  // Per-field validation errors keyed by field_name (extra fields only for now).
+  fieldErrors: Record<string, string>;
+
   captureProgress: { current: number; total: number } | null;
 
   suggestions: SuggestItem[];
@@ -68,6 +71,7 @@ export function initialState(): AppState {
     probableLocation: "",
     confidence: "",
     extraFields: {},
+    fieldErrors: {},
     captureProgress: null,
     suggestions: [],
     lastCapture: null,

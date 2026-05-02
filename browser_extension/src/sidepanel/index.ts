@@ -98,9 +98,15 @@ function dispatch(action: Action): void {
     case "SELECT_CONFIDENCE":
       setState({ confidence: action.value });
       return;
-    case "EDIT_EXTRA_FIELD":
-      setState({ extraFields: { ...state.extraFields, [action.name]: action.value } });
+    case "EDIT_EXTRA_FIELD": {
+      const errors = { ...state.fieldErrors };
+      delete errors[action.name];
+      setState({
+        extraFields: { ...state.extraFields, [action.name]: action.value },
+        fieldErrors: errors,
+      });
       return;
+    }
     case "RETAKE_SCREENSHOT":
       void takeScreenshot();
       return;
@@ -340,21 +346,28 @@ async function submitCapture(force: boolean): Promise<void> {
   }
 
   // Validate required extra fields before round-tripping to the server.
-  const missing = project.field_configs
-    .filter((c) => c.required)
-    .filter((c) => {
-      const v = state.extraFields[c.field_name];
-      if (c.field_type === "boolean") return false; // unchecked == false is acceptable
-      return v === undefined || v === null || v === "";
-    });
-  if (missing.length > 0) {
+  const errors: Record<string, string> = {};
+  for (const c of project.field_configs) {
+    if (!c.required) continue;
+    if (c.field_type === "boolean") continue; // unchecked == false is acceptable
+    const v = state.extraFields[c.field_name];
+    if (v === undefined || v === null || v === "") {
+      errors[c.field_name] = "This field is required";
+    }
+  }
+  if (Object.keys(errors).length > 0) {
     setState({
+      fieldErrors: errors,
       toast: {
         mode: "error",
-        text: `Missing required field: ${missing.map((c) => c.label).join(", ")}`,
+        text: `Please fill the ${Object.keys(errors).length} highlighted required field(s) below.`,
       },
     });
     return;
+  }
+  // Clear any previous error highlights on a successful validation pass.
+  if (Object.keys(state.fieldErrors).length > 0) {
+    setState({ fieldErrors: {} });
   }
 
   setState({ busy: true, toast: null });

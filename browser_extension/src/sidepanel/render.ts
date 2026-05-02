@@ -222,7 +222,12 @@ function renderCapture(state: AppState, dispatch: Dispatch): HTMLElement {
     h("option", { value: "low", selected: state.confidence === "low" }, "Low"),
   );
 
-  const extraFieldsBlock = renderExtraFields(project, state.extraFields, dispatch);
+  const extraFieldsBlock = renderExtraFields(
+    project,
+    state.extraFields,
+    state.fieldErrors,
+    dispatch,
+  );
 
   const canCapture = !!state.currentUrl && /^https?:/i.test(state.currentUrl);
   const screenshotEl = state.captureProgress
@@ -399,6 +404,7 @@ function renderToast(state: AppState, dispatch: Dispatch): Node | null {
 function renderExtraFields(
   project: ProjectSummary | undefined,
   values: Record<string, string | number | boolean>,
+  errors: Record<string, string>,
   dispatch: Dispatch,
 ): Node {
   const configs = project?.field_configs ?? [];
@@ -408,13 +414,16 @@ function renderExtraFields(
     h("div", { style: "font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.04em;color:var(--crane-muted);" },
       "Project-specific fields",
     ),
-    ...configs.map((c) => renderExtraField(c, values[c.field_name], dispatch)),
+    ...configs.map((c) =>
+      renderExtraField(c, values[c.field_name], errors[c.field_name], dispatch),
+    ),
   );
 }
 
 function renderExtraField(
   config: FieldConfigSummary,
   value: string | number | boolean | undefined,
+  error: string | undefined,
   dispatch: Dispatch,
 ): HTMLElement {
   const labelText = config.required ? `${config.label} *` : config.label;
@@ -428,6 +437,14 @@ function renderExtraField(
           : raw,
     });
 
+  const errorBorder = error ? "border-color: var(--crane-danger);" : "";
+  const errorMsg = error
+    ? h("span",
+        { style: "color: var(--crane-danger); font-size: 11px;" },
+        error,
+      )
+    : null;
+
   let control: HTMLElement;
   if (config.field_type === "choice") {
     const options = [h("option", { value: "" }, "—")];
@@ -436,6 +453,8 @@ function renderExtraField(
     }
     control = h("select",
       {
+        style: errorBorder,
+        "aria-invalid": error ? "true" : "false",
         onChange: (ev: Event) => onChange((ev.target as HTMLSelectElement).value),
       },
       ...options,
@@ -454,6 +473,8 @@ function renderExtraField(
   } else if (config.field_type === "number") {
     const input = h("input", {
       type: "number",
+      style: errorBorder,
+      "aria-invalid": error ? "true" : "false",
       onInput: (ev: Event) => onChange((ev.target as HTMLInputElement).value),
     }) as HTMLInputElement;
     input.value = value === undefined || value === null ? "" : String(value);
@@ -461,13 +482,23 @@ function renderExtraField(
   } else {
     const input = h("input", {
       type: "text",
+      style: errorBorder,
+      "aria-invalid": error ? "true" : "false",
       onInput: (ev: Event) => onChange((ev.target as HTMLInputElement).value),
     }) as HTMLInputElement;
     input.value = value === undefined || value === null ? "" : String(value);
     control = input;
   }
 
-  return h("label", { class: "field" }, h("span", {}, labelText), control);
+  return h("label",
+    { class: "field" },
+    h("span",
+      { style: error ? "color: var(--crane-danger);" : "" },
+      labelText,
+    ),
+    control,
+    errorMsg,
+  );
 }
 
 function renderScreenshotModal(imageSrc: string, dispatch: Dispatch): HTMLElement {

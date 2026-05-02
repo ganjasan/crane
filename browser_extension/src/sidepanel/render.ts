@@ -163,16 +163,18 @@ function renderCapture(state: AppState, dispatch: Dispatch): HTMLElement {
   });
   noteArea.value = state.note;
 
-  const screenshotEl = state.screenshotDataUrl
-    ? h("img", { class: "screenshot", src: state.screenshotDataUrl, alt: "page screenshot" })
-    : h("div",
-        {
-          class: "screenshot",
-          style:
-            "display:flex;align-items:center;justify-content:center;color:var(--crane-muted);font-size:12px;",
-        },
-        "No screenshot",
-      );
+  const screenshotEl = state.captureProgress
+    ? renderCaptureProgress(state.captureProgress)
+    : state.screenshotDataUrl
+      ? h("img", { class: "screenshot", src: state.screenshotDataUrl, alt: "page screenshot" })
+      : h("div",
+          {
+            class: "screenshot",
+            style:
+              "display:flex;align-items:center;justify-content:center;color:var(--crane-muted);font-size:12px;",
+          },
+          "No screenshot",
+        );
 
   const dupBlock = state.duplicate
     ? h("div", { class: "alert alert-warn" },
@@ -321,6 +323,35 @@ function renderToast(state: AppState, dispatch: Dispatch): Node | null {
       style: "margin-left:0.5rem;",
       onClick: () => dispatch({ type: "DISMISS_TOAST" }),
     }, "Dismiss"),
+  );
+}
+
+function renderCaptureProgress(progress: { current: number; total: number }): HTMLElement {
+  const pct = progress.total > 0 ? Math.round((progress.current / progress.total) * 100) : 0;
+  return h("div",
+    {
+      class: "screenshot",
+      style:
+        "display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0.4rem;color:var(--crane-text);font-size:12px;background:#0f172a;color:#f8fafc;",
+    },
+    h("div", { style: "font-weight:500;" }, "Capturing full page…"),
+    h("div", { style: "color:#94a3b8;font-variant-numeric:tabular-nums;" },
+      `${progress.current} / ${progress.total}`,
+    ),
+    h("div",
+      {
+        style:
+          "width:80%;height:4px;background:rgba(248,250,252,0.15);border-radius:2px;overflow:hidden;",
+      },
+      h("div", {
+        style:
+          `width:${pct}%;height:100%;background:#2563eb;transition:width 0.3s ease;`,
+      }),
+    ),
+    h("div",
+      { style: "color:#64748b;font-size:11px;text-align:center;max-width:90%;" },
+      "Page is scrolling — please don't scroll or click.",
+    ),
   );
 }
 

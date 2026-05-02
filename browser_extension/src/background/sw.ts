@@ -189,6 +189,21 @@ async function captureFullPage(tabId: number, windowId: number): Promise<string>
   const meta = prepResults[0]?.result;
   if (!meta) throw new Error("Failed to read page dimensions");
 
+  const totalSlices = Math.max(
+    1,
+    Math.min(
+      40,
+      Math.ceil(Math.max(meta.totalHeight, meta.viewportHeight) / meta.viewportHeight),
+    ),
+  );
+
+  // Tell the page that capture is starting so it can show a banner.
+  await chrome.scripting
+    .executeScript({ target: { tabId }, func: injectOverlay, args: [totalSlices] })
+    .catch(noop);
+  // And tell the side panel.
+  broadcastProgress(0, totalSlices);
+
   const slices: { dataUrl: string; y: number }[] = [];
   try {
     const step = meta.viewportHeight;
@@ -199,9 +214,10 @@ async function captureFullPage(tabId: number, windowId: number): Promise<string>
     const MAX_SLICES = 40;
     while (captures < MAX_SLICES) {
       const targetY = Math.min(y, maxScroll);
+      // Scroll, hide overlay, wait paint — all in one round-trip to the page.
       await chrome.scripting.executeScript({
         target: { tabId },
-        func: scrollAndWait,
+        func: scrollAndHideOverlay,
         args: [targetY],
       });
       // Throttle for captureVisibleTab quota.
@@ -209,6 +225,15 @@ async function captureFullPage(tabId: number, windowId: number): Promise<string>
       const dataUrl = await chrome.tabs.captureVisibleTab(windowId, { format: "png" });
       slices.push({ dataUrl, y: targetY });
       captures++;
+      // Show overlay back with updated progress text.
+      await chrome.scripting
+        .executeScript({
+          target: { tabId },
+          func: showOverlayWithProgress,
+          args: [captures, totalSlices],
+        })
+        .catch(noop);
+      broadcastProgress(captures, totalSlices);
       if (y >= maxScroll) break;
       y += step;
     }
@@ -220,9 +245,17 @@ async function captureFullPage(tabId: number, windowId: number): Promise<string>
         args: [meta.originalScroll],
       })
       .catch(noop);
+    broadcastProgress(null, null);
   }
 
   return stitchSlices(slices, meta.totalHeight, meta.dpr);
+}
+
+function broadcastProgress(current: number | null, total: number | null): void {
+  // Side panel listens for this and updates its busy UI.
+  chrome.runtime
+    .sendMessage({ type: "CAPTURE_PROGRESS", current, total })
+    .catch(noop);
 }
 
 // Functions below are injected into the page via chrome.scripting.executeScript.
@@ -257,11 +290,87 @@ function prepareForCapture(): PrepareResult {
   return { totalHeight, viewportHeight, viewportWidth, dpr, originalScroll };
 }
 
-async function scrollAndWait(y: number): Promise<void> {
+async function scrollAndHideOverlay(y: number): Promise<void> {
+  // Hide the in-page banner so it doesn't appear in this slice.
+  const overlay = document.getElementById("crane-capture-overlay");
+  if (overlay) overlay.style.visibility = "hidden";
   window.scrollTo(0, y);
   await new Promise<void>((resolve) =>
     requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
   );
+}
+
+function showOverlayWithProgress(current: number, total: number): void {
+  const overlay = document.getElementById("crane-capture-overlay");
+  if (!overlay) return;
+  const counter = overlay.querySelector<HTMLElement>("[data-crane-progress]");
+  if (counter) counter.textContent = `${current} / ${total}`;
+  overlay.style.visibility = "visible";
+}
+
+function injectOverlay(totalSlices: number): void {
+  // Remove any leftover overlay from a previous run.
+  document.getElementById("crane-capture-overlay")?.remove();
+
+  const div = document.createElement("div");
+  div.id = "crane-capture-overlay";
+  div.style.cssText = [
+    "all: initial",
+    "position: fixed",
+    "top: 0",
+    "left: 50%",
+    "transform: translateX(-50%)",
+    "z-index: 2147483647",
+    "margin-top: 12px",
+    "padding: 10px 16px",
+    "background: rgba(15, 23, 42, 0.95)",
+    "color: #f8fafc",
+    "font: 500 13px/1.4 system-ui, -apple-system, Segoe UI, Roboto, sans-serif",
+    "border-radius: 999px",
+    "box-shadow: 0 4px 14px rgba(15, 23, 42, 0.45)",
+    "pointer-events: none",
+    "user-select: none",
+    "display: flex",
+    "align-items: center",
+    "gap: 10px",
+  ].join(";");
+
+  const dot = document.createElement("span");
+  dot.style.cssText = [
+    "display: inline-block",
+    "width: 8px",
+    "height: 8px",
+    "border-radius: 50%",
+    "background: #2563eb",
+    "animation: crane-pulse 1.2s ease-in-out infinite",
+  ].join(";");
+
+  const label = document.createElement("span");
+  label.textContent = "Crane is capturing the full page — please don't scroll or click";
+
+  const counter = document.createElement("span");
+  counter.dataset["craneProgress"] = "true";
+  counter.style.cssText = "color: #94a3b8; font-variant-numeric: tabular-nums";
+  counter.textContent = `0 / ${totalSlices}`;
+
+  div.appendChild(dot);
+  div.appendChild(label);
+  div.appendChild(counter);
+
+  // Inject keyframes for the pulse dot.
+  const style = document.createElement("style");
+  style.id = "crane-capture-overlay-style";
+  style.textContent =
+    "@keyframes crane-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }";
+
+  document.body.appendChild(style);
+  document.body.appendChild(div);
+
+  // Block clicks while capture runs.
+  document.body.dataset["craneOrigPointerEvents"] = document.body.style.pointerEvents;
+  document.body.style.pointerEvents = "none";
+  document.body.dataset["craneOrigCursor"] = document.body.style.cursor;
+  document.body.style.cursor = "wait";
 }
 
 function restoreAfterCapture(originalScroll: number): void {
@@ -275,6 +384,17 @@ function restoreAfterCapture(originalScroll: number): void {
       document.documentElement.dataset["craneOrigScroll"] ?? "";
     delete document.documentElement.dataset["craneOrigScroll"];
   }
+  // Restore pointer-events / cursor and remove the banner.
+  if (document.body.dataset["craneOrigPointerEvents"] !== undefined) {
+    document.body.style.pointerEvents = document.body.dataset["craneOrigPointerEvents"] ?? "";
+    delete document.body.dataset["craneOrigPointerEvents"];
+  }
+  if (document.body.dataset["craneOrigCursor"] !== undefined) {
+    document.body.style.cursor = document.body.dataset["craneOrigCursor"] ?? "";
+    delete document.body.dataset["craneOrigCursor"];
+  }
+  document.getElementById("crane-capture-overlay")?.remove();
+  document.getElementById("crane-capture-overlay-style")?.remove();
   window.scrollTo(0, originalScroll);
 }
 

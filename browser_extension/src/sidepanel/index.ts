@@ -301,6 +301,13 @@ chrome.runtime.onMessage.addListener((rawMsg) => {
     void enterCaptureScreen((msg as { auth: AuthState }).auth);
   } else if (msg.type === "AUTH_CLEARED") {
     setState({ screen: "connect", auth: null });
+  } else if (msg.type === "CAPTURE_PROGRESS") {
+    const { current, total } = msg as unknown as { current: number | null; total: number | null };
+    if (current == null || total == null) {
+      setState({ captureProgress: null });
+    } else {
+      setState({ captureProgress: { current, total } });
+    }
   }
 });
 

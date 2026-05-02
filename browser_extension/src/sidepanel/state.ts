@@ -31,6 +31,8 @@ export type AppState = {
   note: string;
   duplicate: CheckResult | null;
 
+  captureProgress: { current: number; total: number } | null;
+
   suggestions: SuggestItem[];
   lastCapture: CaptureResponse | null;
   toast: Toast | null;
@@ -50,6 +52,7 @@ export function initialState(): AppState {
     screenshotDataUrl: null,
     note: "",
     duplicate: null,
+    captureProgress: null,
     suggestions: [],
     lastCapture: null,
     toast: null,

@@ -13,7 +13,9 @@
     {% if user.is_authenticated %}
     <div class="flex items-center gap-3 text-sm">
       <a href="{% url 'account_settings' %}" class="text-crane-muted hover:text-crane-ink">{{ user.email }}</a>
-      <a href="{% url 'logout' %}" class="text-crane-muted hover:text-crane-ink">Log out</a>
+      <form method="post" action="{% url 'logout' %}" class="contents">{% csrf_token %}
+        <button type="submit" class="text-crane-muted hover:text-crane-ink">Log out</button>
+      </form>
     </div>
     {% endif %}
   </header>

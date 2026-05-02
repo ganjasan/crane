@@ -75,10 +75,12 @@
         </div>
         <span x-show="!collapsed" x-cloak class="truncate">{{ user.email }}</span>
       </a>
-      <a href="{% url 'logout' %}" class="sidebar-link">
-        {% include "icons/log-out.html" %}
-        <span x-show="!collapsed" x-cloak>Log out</span>
-      </a>
+      <form method="post" action="{% url 'logout' %}" class="contents">{% csrf_token %}
+        <button type="submit" class="sidebar-link w-full text-left">
+          {% include "icons/log-out.html" %}
+          <span x-show="!collapsed" x-cloak>Log out</span>
+        </button>
+      </form>
     {% endif %}
     <button @click="toggle()" class="sidebar-link w-full">
       <span :class="collapsed ? 'rotate-180' : ''" class="transition-transform shrink-0">
@@ -112,7 +114,9 @@
     {% if user.is_authenticated %}
     <div class="border-t border-white/5 p-2">
       <a href="{% url 'account_settings' %}" class="sidebar-link"><span class="truncate">{{ user.email }}</span></a>
-      <a href="{% url 'logout' %}" class="sidebar-link">{% include "icons/log-out.html" %}<span>Log out</span></a>
+      <form method="post" action="{% url 'logout' %}" class="contents">{% csrf_token %}
+        <button type="submit" class="sidebar-link w-full text-left">{% include "icons/log-out.html" %}<span>Log out</span></button>
+      </form>
     </div>
     {% endif %}
   </aside>

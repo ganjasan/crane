@@ -28,6 +28,7 @@ import type {
   SuggestMsgResponse,
 } from "@shared/types";
 import { baseUrl as baseUrlStore, lastProject } from "@shared/storage";
+import type { PlatformSummary } from "@shared/types";
 
 const root = document.getElementById("root")!;
 let state: AppState = initialState();
@@ -220,7 +221,10 @@ async function enterCaptureScreen(authState: AuthState): Promise<void> {
     duplicate: null,
   });
   await refreshTabContext();
-  if (initialProject) await checkCurrentTab(initialProject);
+  if (initialProject) {
+    autoDetectPlatform(initialProject.platforms, state.currentUrl);
+    await checkCurrentTab(initialProject);
+  }
 }
 
 async function selectProject(projectId: string): Promise<void> {
@@ -234,7 +238,27 @@ async function selectProject(projectId: string): Promise<void> {
     extraFields: {},
     duplicate: null,
   });
+  autoDetectPlatform(project.platforms, state.currentUrl);
   await checkCurrentTab(project);
+}
+
+// Pick the project's platform whose `url_pattern` regex matches the current
+// tab's URL. Mirrors the server-side fallback in IncidentCaptureView so the
+// user sees "Telegram" highlighted as soon as they're on a Telegram page,
+// instead of the generic "Auto-detect" placeholder.
+function autoDetectPlatform(platforms: PlatformSummary[], url: string): void {
+  if (!url) return;
+  for (const p of platforms) {
+    if (!p.url_pattern) continue;
+    try {
+      if (new RegExp(p.url_pattern).test(url)) {
+        setState({ selectedPlatformId: p.id });
+        return;
+      }
+    } catch {
+      // Skip patterns that don't compile as JS regex.
+    }
+  }
 }
 
 async function refreshTabContext(): Promise<void> {
@@ -394,7 +418,12 @@ chrome.tabs.onUpdated.addListener((_id, changeInfo, tab) => {
 async function refreshAfterTabChange(): Promise<void> {
   await refreshTabContext();
   const project = state.projects.find((p) => p.id === state.selectedProjectId);
-  if (project) await checkCurrentTab(project);
+  if (project) {
+    // Reset to auto-detect so the new tab gets a fresh match.
+    setState({ selectedPlatformId: "" });
+    autoDetectPlatform(project.platforms, state.currentUrl);
+    await checkCurrentTab(project);
+  }
 }
 
 // --- Suppress unused type-only imports lint --------------------------------

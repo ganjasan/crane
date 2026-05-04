@@ -4,7 +4,7 @@
 {% block content %}
 {% url 'incident_export' org_slug=request.organization.slug project_slug=request.project.slug as export_url %}
 {% url 'incident_create' org_slug=request.organization.slug project_slug=request.project.slug as new_url %}
-{% include "components/_page_header.html" with title="Incidents" subtitle="Structured evidence records across platforms." secondary_label="Export CSV" secondary_url=export_url action_label="New incident" action_url=new_url action_icon="plus" %}
+{% include "components/_page_header.html" with title="Incidents" subtitle="Structured evidence records across platforms." secondary_label="Export ZIP" secondary_url=export_url action_label="New incident" action_url=new_url action_icon="plus" %}
 
 <form class="card p-4 mb-5"
       hx-get="{% url 'incident_list' org_slug=request.organization.slug project_slug=request.project.slug %}"

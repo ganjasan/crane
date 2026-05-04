@@ -1,4 +1,7 @@
 import csv
+import io
+import os
+import zipfile
 
 from django.contrib import messages
 from django.db.models import Q
@@ -226,53 +229,66 @@ class IncidentStatusView(RequireProjectRole, View):
 
 
 class IncidentExportView(RequireProjectRole, View):
-    """Export incidents as CSV. Coordinator only."""
+    """Export incidents as a ZIP bundle (CSV + screenshots/). Coordinator only."""
 
     def get(self, request, *args, **kwargs):
         project = request.project
         qs = Incident.objects.filter(project=project).select_related(
-            "platform", "collected_by"
+            "platform", "collected_by", "duplicate_of"
         ).order_by("record_id")
 
-        # Get project field configs for extra_fields columns
         configs = ProjectFieldConfig.objects.filter(project=project).order_by("order")
 
-        response = HttpResponse(content_type="text/csv")
-        response["Content-Disposition"] = (
-            f'attachment; filename="{project.slug}-incidents.csv"'
-        )
-
-        writer = csv.writer(response)
-
-        # Header row
         headers = [
             "record_id", "status", "platform", "url", "date_of_post",
             "date_collected", "collected_by", "location_mentioned",
             "probable_location", "language", "confidence", "notes",
-            "duplicate_of",
+            "duplicate_of", "screenshot",
         ]
         headers += [c.label for c in configs]
+
+        csv_buf = io.StringIO()
+        writer = csv.writer(csv_buf)
         writer.writerow(headers)
 
-        # Data rows
-        for inc in qs:
-            row = [
-                inc.record_id,
-                inc.get_status_display(),
-                inc.platform.name if inc.platform else "",
-                inc.url,
-                inc.date_of_post or "",
-                inc.date_collected.strftime("%Y-%m-%d %H:%M"),
-                inc.collected_by.email if inc.collected_by else "",
-                inc.location_mentioned,
-                inc.probable_location,
-                inc.language,
-                inc.get_confidence_display(),
-                inc.notes,
-                inc.duplicate_of.record_id if inc.duplicate_of else "",
-            ]
-            extra = inc.extra_fields or {}
-            row += [extra.get(c.field_name, "") for c in configs]
-            writer.writerow(row)
+        zip_buf = io.BytesIO()
+        with zipfile.ZipFile(zip_buf, "w", zipfile.ZIP_DEFLATED) as zf:
+            for inc in qs:
+                screenshot_path = ""
+                if inc.screenshot:
+                    ext = os.path.splitext(inc.screenshot.name)[1] or ".bin"
+                    screenshot_path = f"screenshots/{inc.record_id}{ext}"
+                    try:
+                        with inc.screenshot.open("rb") as f:
+                            zf.writestr(screenshot_path, f.read())
+                    except (FileNotFoundError, OSError):
+                        # File missing on storage — keep CSV row, drop the path
+                        screenshot_path = ""
 
+                row = [
+                    inc.record_id,
+                    inc.get_status_display(),
+                    inc.platform.name if inc.platform else "",
+                    inc.url,
+                    inc.date_of_post or "",
+                    inc.date_collected.strftime("%Y-%m-%d %H:%M"),
+                    inc.collected_by.email if inc.collected_by else "",
+                    inc.location_mentioned,
+                    inc.probable_location,
+                    inc.language,
+                    inc.get_confidence_display(),
+                    inc.notes,
+                    inc.duplicate_of.record_id if inc.duplicate_of else "",
+                    screenshot_path,
+                ]
+                extra = inc.extra_fields or {}
+                row += [extra.get(c.field_name, "") for c in configs]
+                writer.writerow(row)
+
+            zf.writestr("incidents.csv", csv_buf.getvalue())
+
+        response = HttpResponse(zip_buf.getvalue(), content_type="application/zip")
+        response["Content-Disposition"] = (
+            f'attachment; filename="{project.slug}-incidents.zip"'
+        )
         return response

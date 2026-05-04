@@ -1,8 +1,16 @@
-# Crane
+<p align="center">
+  <img src="static/favicon.svg" alt="Crane logo" width="128" height="128">
+</p>
 
-Open-source collaborative OSINT platform for capturing, organizing, and
-analyzing online evidence. Multi-tenant Django app (Org → Project →
-Incident) with a Chrome browser extension for one-click capture.
+<h1 align="center">Crane</h1>
+
+<p align="center">
+  Open-source collaborative OSINT platform for capturing, organizing,
+  and analyzing online evidence.
+</p>
+
+Multi-tenant Django app (Org → Project → Incident) with a Chrome
+browser extension for one-click capture.
 
 - **Backend**: Django 6.0.4, Python 3.12, PostgreSQL 16
 - **Frontend**: Tailwind CSS v4 (standalone CLI, no Node) + HTMX + Alpine.js
